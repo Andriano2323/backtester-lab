@@ -13,9 +13,11 @@
 #include <utility>
 #include <vector>
 
-namespace md {
+namespace md
+{
 
-struct UnknownOrderDiagnostic {
+struct UnknownOrderDiagnostic
+{
     std::string operation;
     std::string decision;
     std::uint64_t timestamp{};
@@ -29,8 +31,9 @@ struct UnknownOrderDiagnostic {
     std::size_t line_number{};
 };
 
-class LimitOrderBook {
-public:
+class LimitOrderBook
+{
+  public:
     using BidLevels = std::map<std::int64_t, std::uint64_t, std::greater<>>;
     using AskLevels = std::map<std::int64_t, std::uint64_t>;
 
@@ -61,8 +64,9 @@ public:
 
     void printSnapshot(std::ostream& out, std::size_t depth) const;
 
-private:
-    struct RestingOrder {
+  private:
+    struct RestingOrder
+    {
         Side side{Side::None};
         std::int64_t price{};
         std::uint64_t size{};
@@ -80,8 +84,7 @@ private:
     void recordUnknownOrderDiagnostic(
         const MarketDataEvent& event,
         const std::string& operation,
-        const std::string& decision
-    );
+        const std::string& decision);
 
     std::uint64_t instrument_id_{};
     BidLevels bids_;

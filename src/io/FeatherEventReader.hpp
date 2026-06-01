@@ -6,18 +6,19 @@
 #include <filesystem>
 #include <functional>
 
-namespace md {
+namespace md
+{
 
-class FeatherEventReader {
-public:
+class FeatherEventReader
+{
+  public:
     explicit FeatherEventReader(std::filesystem::path file_path);
 
     void readAll(
         std::uint32_t source_file_id,
-        const std::function<void(const MarketDataEvent&)>& on_event
-    ) const;
+        const std::function<void(const MarketDataEvent&)>& on_event) const;
 
-private:
+  private:
     std::filesystem::path file_path_;
 };
 

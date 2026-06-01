@@ -11,13 +11,15 @@
 #include <unordered_map>
 #include <vector>
 
-namespace md::lob {
+namespace md::lob
+{
 
 class FillSimulator;
 class SimulatedLOB;
 
-class SyntheticBook {
-public:
+class SyntheticBook
+{
+  public:
     [[nodiscard]] std::optional<BookLevel> bestBid() const;
     [[nodiscard]] std::optional<BookLevel> bestAsk() const;
     [[nodiscard]] std::vector<BookLevel> bids(std::size_t depth) const;
@@ -25,7 +27,7 @@ public:
     [[nodiscard]] std::size_t bidLevelCount() const noexcept;
     [[nodiscard]] std::size_t askLevelCount() const noexcept;
 
-private:
+  private:
     using BidLevels = std::map<Price, Quantity, std::greater<Price>>;
     using AskLevels = std::map<Price, Quantity>;
 
@@ -38,8 +40,9 @@ private:
     friend class EngineView;
 };
 
-class ConsumedLiquidityBook {
-public:
+class ConsumedLiquidityBook
+{
+  public:
     void consume(Side side, Price price, Quantity size);
     [[nodiscard]] Quantity consumedAt(Side side, Price price) const;
     [[nodiscard]] std::vector<BookLevel> bids(std::size_t depth) const;
@@ -47,7 +50,7 @@ public:
     [[nodiscard]] std::size_t bidLevelCount() const noexcept;
     [[nodiscard]] std::size_t askLevelCount() const noexcept;
 
-private:
+  private:
     using BidLevels = std::map<Price, Quantity, std::greater<Price>>;
     using AskLevels = std::map<Price, Quantity>;
 
@@ -57,8 +60,9 @@ private:
     friend class SimulatedLOB;
 };
 
-class EngineView {
-public:
+class EngineView
+{
+  public:
     explicit EngineView(EngineId engine_id);
 
     [[nodiscard]] EngineId engineId() const noexcept;
@@ -68,16 +72,16 @@ public:
         Side side,
         Price price,
         Quantity size,
-        TimestampNs timestamp_ns
-    );
+        TimestampNs timestamp_ns);
 
     void cancelSyntheticOrder(SyntheticOrderId order_id);
 
     [[nodiscard]] const SyntheticBook& syntheticBook(InstrumentId instrument_id) const;
     [[nodiscard]] const ConsumedLiquidityBook& consumedHistoricalLiquidity(InstrumentId instrument_id) const;
 
-private:
-    struct SyntheticOrder {
+  private:
+    struct SyntheticOrder
+    {
         InstrumentId instrument_id{};
         Side side{Side::None};
         Price price{};
@@ -95,8 +99,7 @@ private:
         Side side,
         Price price,
         Quantity size,
-        TimestampNs timestamp_ns
-    );
+        TimestampNs timestamp_ns);
     void consumeHistoricalLiquidity(InstrumentId instrument_id, Side side, Price price, Quantity size);
 
     std::unordered_map<SyntheticOrderId, SyntheticOrder> own_orders_;

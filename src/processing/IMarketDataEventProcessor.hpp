@@ -2,10 +2,12 @@
 
 #include "domain/MarketDataEvent.hpp"
 
-namespace md {
+namespace md
+{
 
-class IMarketDataEventProcessor {
-public:
+class IMarketDataEventProcessor
+{
+  public:
     virtual ~IMarketDataEventProcessor() = default;
     virtual void processMarketDataEvent(const MarketDataEvent& event) = 0;
 };

@@ -8,9 +8,11 @@
 #include <unordered_map>
 #include <vector>
 
-namespace md::lob {
+namespace md::lob
+{
 
-struct SimulatedOrderRequest {
+struct SimulatedOrderRequest
+{
     EngineId engine_id{};
     InstrumentId instrument_id{};
     Side side{Side::None};
@@ -19,7 +21,8 @@ struct SimulatedOrderRequest {
     TimestampNs timestamp_ns{};
 };
 
-struct SimulatedFill {
+struct SimulatedFill
+{
     EngineId engine_id{};
     InstrumentId instrument_id{};
     SyntheticOrderId order_id{};
@@ -29,8 +32,9 @@ struct SimulatedFill {
     TimestampNs timestamp_ns{};
 };
 
-class FillSimulator {
-public:
+class FillSimulator
+{
+  public:
     using EngineViews = std::unordered_map<EngineId, EngineView>;
 
     FillSimulator(const HistoricalLOB& historical, EngineViews& engine_views);
@@ -38,7 +42,7 @@ public:
 
     [[nodiscard]] std::vector<SimulatedFill> submitLimitOrder(const SimulatedOrderRequest& request);
 
-private:
+  private:
     [[nodiscard]] LobSnapshot historicalSnapshot(InstrumentId instrument_id) const;
 
     const HistoricalLOB* historical_{};

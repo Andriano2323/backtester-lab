@@ -4,15 +4,17 @@
 
 #include <iostream>
 
-namespace md {
+namespace md
+{
 
 LoggingMarketDataEventProcessor::LoggingMarketDataEventProcessor(
     std::ostream& out,
-    std::size_t max_events_to_print
-) : out_(out), max_events_to_print_(max_events_to_print) {}
+    std::size_t max_events_to_print) : out_(out), max_events_to_print_(max_events_to_print) {}
 
-void LoggingMarketDataEventProcessor::processMarketDataEvent(const MarketDataEvent& event) {
-    if (printed_count_ < max_events_to_print_) {
+void LoggingMarketDataEventProcessor::processMarketDataEvent(const MarketDataEvent& event)
+{
+    if (printed_count_ < max_events_to_print_)
+    {
         out_ << formatEventFields(event) << '\n';
         ++printed_count_;
     }
@@ -20,11 +22,13 @@ void LoggingMarketDataEventProcessor::processMarketDataEvent(const MarketDataEve
     ++processed_count_;
 }
 
-std::size_t LoggingMarketDataEventProcessor::processedCount() const {
+std::size_t LoggingMarketDataEventProcessor::processedCount() const
+{
     return processed_count_;
 }
 
-std::size_t LoggingMarketDataEventProcessor::printedCount() const {
+std::size_t LoggingMarketDataEventProcessor::printedCount() const
+{
     return printed_count_;
 }
 

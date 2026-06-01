@@ -10,21 +10,25 @@
 #include <unordered_map>
 #include <vector>
 
-namespace md::lob {
+namespace md::lob
+{
 
-struct BookLevel {
+struct BookLevel
+{
     Price price{};
     Quantity size{};
 };
 
-struct LobSnapshot {
+struct LobSnapshot
+{
     InstrumentId instrument_id{};
     std::vector<BookLevel> bids;
     std::vector<BookLevel> asks;
 };
 
-class HistoricalLOB {
-public:
+class HistoricalLOB
+{
+  public:
     void apply(const MarketDataEvent& event);
 
     [[nodiscard]] std::optional<BookLevel> bestBid() const;
@@ -37,8 +41,9 @@ public:
     [[nodiscard]] std::size_t bidLevelCount() const noexcept;
     [[nodiscard]] std::size_t askLevelCount() const noexcept;
 
-private:
-    struct HistoricalOrder {
+  private:
+    struct HistoricalOrder
+    {
         InstrumentId instrument_id{};
         Side side{Side::None};
         Price price{};

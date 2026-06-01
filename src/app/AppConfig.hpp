@@ -6,9 +6,11 @@
 #include <cstddef>
 #include <filesystem>
 
-namespace md {
+namespace md
+{
 
-enum class RunMode {
+enum class RunMode
+{
     Standard,
     Flat,
     Hierarchy,
@@ -16,7 +18,8 @@ enum class RunMode {
     Help
 };
 
-struct AppConfig {
+struct AppConfig
+{
     RunMode mode{RunMode::Help};
     std::filesystem::path input_path;
     InputFormat input_format{InputFormat::Json};

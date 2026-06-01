@@ -7,20 +7,22 @@
 #include <ostream>
 #include <thread>
 
-namespace md {
+namespace md
+{
 
 RunResult FlatMergeRunner::run(
     const std::filesystem::path& folder_path,
     IMarketDataEventProcessor& processor,
     bool verbose,
     std::ostream& err,
-    InputFormat input_format
-) const {
+    InputFormat input_format) const
+{
     RunResult result;
     result.strategy_name = "flat";
 
     const auto files = discoverInputFiles(folder_path, input_format);
-    if (verbose) {
+    if (verbose)
+    {
         err << "selected_mode=flat\n"
             << "input_format=" << inputFormatName(input_format) << '\n'
             << "discovered_files_count=" << files.size() << '\n'
@@ -33,23 +35,22 @@ RunResult FlatMergeRunner::run(
         files,
         verbose,
         err,
-        input_format
-    );
+        input_format);
     auto merged_queue = makeEventQueue();
 
-    std::thread merger([&producers, merged_queue] {
-        mergeInputQueues(producers.queues, merged_queue);
-    });
+    std::thread merger([&producers, merged_queue]
+                       { mergeInputQueues(producers.queues, merged_queue); });
 
-    std::thread dispatcher([&] {
-        dispatchMergedQueue(merged_queue, processor, result.summary);
-    });
+    std::thread dispatcher([&]
+                           { dispatchMergedQueue(merged_queue, processor, result.summary); });
 
     producers.join();
-    if (merger.joinable()) {
+    if (merger.joinable())
+    {
         merger.join();
     }
-    if (dispatcher.joinable()) {
+    if (dispatcher.joinable())
+    {
         dispatcher.join();
     }
 
@@ -57,7 +58,8 @@ RunResult FlatMergeRunner::run(
     const auto finished_at = std::chrono::steady_clock::now();
     result.wall_clock_seconds = std::chrono::duration<double>(finished_at - started_at).count();
 
-    if (verbose) {
+    if (verbose)
+    {
         err << "messages_processed=" << result.summary.total_messages_processed << '\n'
             << "chronological_violations=" << result.summary.chronological_violations << '\n';
     }

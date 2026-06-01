@@ -13,21 +13,21 @@
 #include <unordered_map>
 #include <vector>
 
-namespace md {
+namespace md
+{
 
-class ShardedLobMarketDataEventProcessor final : public IMarketDataEventProcessor {
-public:
+class ShardedLobMarketDataEventProcessor final : public IMarketDataEventProcessor
+{
+  public:
     ShardedLobMarketDataEventProcessor(
         std::ostream& out,
         std::size_t worker_count,
-        LobProcessorConfig config = {}
-    );
+        LobProcessorConfig config = {});
     ShardedLobMarketDataEventProcessor(
         std::ostream& out,
         std::ostream& snapshot_out,
         std::size_t worker_count,
-        LobProcessorConfig config
-    );
+        LobProcessorConfig config);
     ~ShardedLobMarketDataEventProcessor() override;
 
     ShardedLobMarketDataEventProcessor(const ShardedLobMarketDataEventProcessor&) = delete;
@@ -48,8 +48,9 @@ public:
     void printFinalSummary();
     void printFinalSummary(std::ostream& out);
 
-private:
-    struct RouterOrder {
+  private:
+    struct RouterOrder
+    {
         std::uint64_t instrument_id{};
         std::uint64_t size{};
     };
@@ -66,8 +67,7 @@ private:
     [[nodiscard]] BookManagerSnapshot mergedSnapshot(
         std::size_t event_count,
         std::uint64_t timestamp,
-        std::size_t depth
-    );
+        std::size_t depth);
     [[nodiscard]] std::size_t totalUnresolvedEvents();
     [[nodiscard]] std::size_t totalUnknownModifyRecoveredAsAddCount();
     [[nodiscard]] std::size_t totalUnknownModifySkippedCount();

@@ -5,17 +5,19 @@
 
 #include <cstddef>
 
-namespace md::lob {
+namespace md::lob
+{
 
-class HistoricalLobProcessor final : public IMarketDataEventProcessor {
-public:
+class HistoricalLobProcessor final : public IMarketDataEventProcessor
+{
+  public:
     void processMarketDataEvent(const MarketDataEvent& event) override;
 
     [[nodiscard]] const HistoricalLOB& book(InstrumentId instrument_id) const;
     [[nodiscard]] std::size_t instrumentCount() const noexcept;
     [[nodiscard]] const HistoricalLobStore& store() const noexcept;
 
-private:
+  private:
     HistoricalLobStore books_;
 };
 
