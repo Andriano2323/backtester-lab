@@ -155,6 +155,17 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 add_test(NAME ingest_tests COMMAND ingest_tests)
 
+add_executable(domain_contract_tests tests/test_domain_types.cpp)
+target_link_libraries(domain_contract_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(domain_contract_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(domain_contract_tests PRIVATE -O0 -g --coverage)
+        target_link_options(domain_contract_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME domain_contract_tests COMMAND domain_contract_tests)
+
 add_test(
     NAME ingest_smoke_standard
     COMMAND ingest --mode standard --input ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_data/single_valid.ndjson --print-events 0
