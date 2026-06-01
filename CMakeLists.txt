@@ -22,6 +22,8 @@ set(INGEST_SOURCES
     src/lob/HistoricalLobProcessor.cpp
     src/lob/HistoricalLobStore.cpp
     src/lob/SimulatedLOB.cpp
+    src/messaging/MarketDataGapDetector.cpp
+    src/messaging/MarketDataPublisher.cpp
     src/parsing/JsonParser.cpp
     src/processing/AsyncSnapshotWriter.cpp
     src/processing/LoggingMarketDataEventProcessor.cpp
@@ -124,17 +126,26 @@ if (ENABLE_ARROW AND DEFINED ARROW_RUNTIME_DIR)
     set_target_properties(ingest PROPERTIES BUILD_RPATH "${ARROW_RUNTIME_DIR}")
 endif()
 
+add_executable(market_data_feed_benchmark benchmarks/market_data_feed_benchmark.cpp)
+target_link_libraries(market_data_feed_benchmark PRIVATE ingest_core)
+if (ENABLE_ARROW AND DEFINED ARROW_RUNTIME_DIR)
+    set_target_properties(market_data_feed_benchmark PROPERTIES BUILD_RPATH "${ARROW_RUNTIME_DIR}")
+endif()
+
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(ingest_core PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(ingest PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(market_data_feed_benchmark PRIVATE -Wall -Wextra -Wpedantic)
     set_source_files_properties(third_party/simdjson/simdjson.cpp PROPERTIES
         COMPILE_FLAGS "-Wno-error -w")
 
     if (ENABLE_COVERAGE)
         target_compile_options(ingest_core PUBLIC -O0 -g --coverage)
         target_compile_options(ingest PRIVATE -O0 -g --coverage)
+        target_compile_options(market_data_feed_benchmark PRIVATE -O0 -g --coverage)
         target_link_options(ingest_core PUBLIC --coverage)
         target_link_options(ingest PRIVATE --coverage)
+        target_link_options(market_data_feed_benchmark PRIVATE --coverage)
     endif()
 endif()
 
@@ -165,6 +176,69 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     endif()
 endif()
 add_test(NAME domain_contract_tests COMMAND domain_contract_tests)
+
+add_executable(non_blocking_queue_tests tests/test_non_blocking_queue.cpp)
+target_link_libraries(non_blocking_queue_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(non_blocking_queue_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(non_blocking_queue_tests PRIVATE -O0 -g --coverage)
+        target_link_options(non_blocking_queue_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME non_blocking_queue_tests COMMAND non_blocking_queue_tests)
+
+add_executable(market_data_message_tests tests/test_market_data_messages.cpp)
+target_link_libraries(market_data_message_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(market_data_message_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(market_data_message_tests PRIVATE -O0 -g --coverage)
+        target_link_options(market_data_message_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME market_data_message_tests COMMAND market_data_message_tests)
+
+add_executable(market_data_subscriber_tests tests/test_market_data_subscriber.cpp)
+target_link_libraries(market_data_subscriber_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(market_data_subscriber_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(market_data_subscriber_tests PRIVATE -O0 -g --coverage)
+        target_link_options(market_data_subscriber_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME market_data_subscriber_tests COMMAND market_data_subscriber_tests)
+
+add_executable(market_data_publisher_tests tests/test_market_data_publisher.cpp)
+target_link_libraries(market_data_publisher_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(market_data_publisher_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(market_data_publisher_tests PRIVATE -O0 -g --coverage)
+        target_link_options(market_data_publisher_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME market_data_publisher_tests COMMAND market_data_publisher_tests)
+
+add_executable(market_data_gap_detector_tests tests/test_market_data_gap_detector.cpp)
+target_link_libraries(market_data_gap_detector_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(market_data_gap_detector_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(market_data_gap_detector_tests PRIVATE -O0 -g --coverage)
+        target_link_options(market_data_gap_detector_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME market_data_gap_detector_tests COMMAND market_data_gap_detector_tests)
+
+add_test(
+    NAME market_data_feed_benchmark_smoke
+    COMMAND market_data_feed_benchmark --subscribers 2 --messages 1000 --batch-size 64
+)
+set_tests_properties(market_data_feed_benchmark_smoke PROPERTIES
+    PASS_REGULAR_EXPRESSION "subscribers,messages,total_deliveries,wall_clock_seconds,publishes_per_second,deliveries_per_second[\r\n]+2,1000,2000,"
+)
 
 add_test(
     NAME ingest_smoke_standard
