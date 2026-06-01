@@ -21,4 +21,4 @@ repos:
       # Format C++ code according to our style guide.
       - id: clang-format
         types: [c++]
-        exclude: 'thirdparty/.*|data/.*'
+        exclude: '^(third_party/|thirdparty/|data/)'

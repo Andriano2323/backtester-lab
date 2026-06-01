@@ -10,19 +10,21 @@
 #include <mutex>
 #include <thread>
 
-namespace md {
+namespace md
+{
 
-enum class SnapshotWriterMode {
+enum class SnapshotWriterMode
+{
     Sync,
     Async
 };
 
-class AsyncSnapshotWriter {
-public:
+class AsyncSnapshotWriter
+{
+  public:
     explicit AsyncSnapshotWriter(
         std::ostream& out,
-        SnapshotWriterMode mode = SnapshotWriterMode::Sync
-    );
+        SnapshotWriterMode mode = SnapshotWriterMode::Sync);
     ~AsyncSnapshotWriter();
 
     AsyncSnapshotWriter(const AsyncSnapshotWriter&) = delete;
@@ -34,7 +36,7 @@ public:
     [[nodiscard]] std::size_t submittedCount() const noexcept;
     [[nodiscard]] std::size_t writtenCount() const noexcept;
 
-private:
+  private:
     void workerLoop();
     void writeNow(const BookManagerSnapshot& snapshot);
 

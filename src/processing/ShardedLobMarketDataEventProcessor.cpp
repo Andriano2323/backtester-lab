@@ -15,47 +15,54 @@
 #include <thread>
 #include <utility>
 
-namespace md {
-namespace {
+namespace md
+{
+namespace
+{
 
-bool hasValidSide(Side side) {
+bool hasValidSide(Side side)
+{
     return side == Side::Bid || side == Side::Ask;
 }
 
-bool hasValidPrice(std::int64_t price) {
+bool hasValidPrice(std::int64_t price)
+{
     return price != std::numeric_limits<std::int64_t>::max();
 }
 
-bool hasValidRestingState(const MarketDataEvent& event) {
-    return event.order_id != 0
-        && hasValidSide(event.side)
-        && hasValidPrice(event.price)
-        && event.size > 0;
+bool hasValidRestingState(const MarketDataEvent& event)
+{
+    return event.order_id != 0 && hasValidSide(event.side) && hasValidPrice(event.price) && event.size > 0;
 }
 
-std::string formatOptionalPrice(std::optional<std::int64_t> price) {
+std::string formatOptionalPrice(std::optional<std::int64_t> price)
+{
     return price.has_value() ? formatPrice(*price) : "<none>";
 }
 
 } // namespace
 
-class ShardedLobMarketDataEventProcessor::Worker {
-public:
-    Worker() {
-        thread_ = std::thread([this] {
-            workerLoop();
-        });
+class ShardedLobMarketDataEventProcessor::Worker
+{
+  public:
+    Worker()
+    {
+        thread_ = std::thread([this]
+                              { workerLoop(); });
     }
 
-    ~Worker() {
+    ~Worker()
+    {
         finish();
     }
 
     Worker(const Worker&) = delete;
     Worker& operator=(const Worker&) = delete;
 
-    void enqueue(MarketDataEvent event) {
-        if (finish_requested_) {
+    void enqueue(MarketDataEvent event)
+    {
+        if (finish_requested_)
+        {
             throw std::runtime_error("cannot enqueue LOB event after worker finish");
         }
 
@@ -63,18 +70,22 @@ public:
         queue_.push(WorkerItem::data(std::move(event)));
     }
 
-    void drain() {
+    void drain()
+    {
         queue_.flush();
         const auto target = enqueued_count_.load(std::memory_order_acquire);
         auto processed = processed_count_.load(std::memory_order_acquire);
-        while (processed < target) {
+        while (processed < target)
+        {
             processed_count_.wait(processed, std::memory_order_acquire);
             processed = processed_count_.load(std::memory_order_acquire);
         }
     }
 
-    void finish() {
-        if (finish_requested_) {
+    void finish()
+    {
+        if (finish_requested_)
+        {
             return;
         }
 
@@ -82,28 +93,33 @@ public:
         queue_.push(WorkerItem::end());
         queue_.flush();
 
-        if (thread_.joinable()) {
+        if (thread_.joinable())
+        {
             thread_.join();
         }
     }
 
-    [[nodiscard]] const BookManager& books() const noexcept {
+    [[nodiscard]] const BookManager& books() const noexcept
+    {
         return books_;
     }
 
-private:
-    struct WorkerItem {
+  private:
+    struct WorkerItem
+    {
         MarketDataEvent event;
         bool end_of_stream{};
 
-        static WorkerItem data(MarketDataEvent event) {
+        static WorkerItem data(MarketDataEvent event)
+        {
             return WorkerItem{
                 .event = std::move(event),
                 .end_of_stream = false,
             };
         }
 
-        static WorkerItem end() {
+        static WorkerItem end()
+        {
             return WorkerItem{
                 .event = {},
                 .end_of_stream = true,
@@ -111,10 +127,13 @@ private:
         }
     };
 
-    void workerLoop() {
-        while (true) {
+    void workerLoop()
+    {
+        while (true)
+        {
             WorkerItem item = queue_.pop();
-            if (item.end_of_stream) {
+            if (item.end_of_stream)
+            {
                 processed_count_.notify_all();
                 return;
             }
@@ -136,40 +155,45 @@ private:
 ShardedLobMarketDataEventProcessor::ShardedLobMarketDataEventProcessor(
     std::ostream& out,
     std::size_t worker_count,
-    LobProcessorConfig config
-) : ShardedLobMarketDataEventProcessor(out, out, worker_count, config) {}
+    LobProcessorConfig config) : ShardedLobMarketDataEventProcessor(out, out, worker_count, config) {}
 
 ShardedLobMarketDataEventProcessor::ShardedLobMarketDataEventProcessor(
     std::ostream& out,
     std::ostream& snapshot_out,
     std::size_t worker_count,
-    LobProcessorConfig config
-) : out_(out),
-    config_(config),
-    snapshot_writer_(snapshot_out, config.snapshot_writer_mode) {
-    if (worker_count == 0) {
+    LobProcessorConfig config) : out_(out),
+                                 config_(config),
+                                 snapshot_writer_(snapshot_out, config.snapshot_writer_mode)
+{
+    if (worker_count == 0)
+    {
         throw std::invalid_argument("LOB worker count must be greater than zero");
     }
 
     workers_.reserve(worker_count);
-    for (std::size_t i = 0; i < worker_count; ++i) {
+    for (std::size_t i = 0; i < worker_count; ++i)
+    {
         workers_.push_back(std::make_unique<Worker>());
     }
 }
 
-ShardedLobMarketDataEventProcessor::~ShardedLobMarketDataEventProcessor() {
+ShardedLobMarketDataEventProcessor::~ShardedLobMarketDataEventProcessor()
+{
     finish();
 }
 
-void ShardedLobMarketDataEventProcessor::processMarketDataEvent(const MarketDataEvent& event) {
-    if (finished_) {
+void ShardedLobMarketDataEventProcessor::processMarketDataEvent(const MarketDataEvent& event)
+{
+    if (finished_)
+    {
         throw std::runtime_error("cannot process LOB event after finish");
     }
 
     ++processed_count_;
 
     const auto instrument_id = resolveInstrumentId(event);
-    if (instrument_id == 0) {
+    if (instrument_id == 0)
+    {
         ++router_unresolved_events_;
         maybePrintSnapshot(event.timestamp);
         return;
@@ -181,39 +205,45 @@ void ShardedLobMarketDataEventProcessor::processMarketDataEvent(const MarketData
     maybePrintSnapshot(event.timestamp);
 }
 
-std::size_t ShardedLobMarketDataEventProcessor::workerCount() const noexcept {
+std::size_t ShardedLobMarketDataEventProcessor::workerCount() const noexcept
+{
     return workers_.size();
 }
 
-std::size_t ShardedLobMarketDataEventProcessor::processedCount() const noexcept {
+std::size_t ShardedLobMarketDataEventProcessor::processedCount() const noexcept
+{
     return processed_count_;
 }
 
-std::size_t ShardedLobMarketDataEventProcessor::snapshotCount() const noexcept {
+std::size_t ShardedLobMarketDataEventProcessor::snapshotCount() const noexcept
+{
     return snapshot_count_;
 }
 
-std::size_t ShardedLobMarketDataEventProcessor::snapshotWrittenCount() const noexcept {
+std::size_t ShardedLobMarketDataEventProcessor::snapshotWrittenCount() const noexcept
+{
     return snapshot_writer_.writtenCount();
 }
 
-std::size_t ShardedLobMarketDataEventProcessor::unresolvedEvents() {
+std::size_t ShardedLobMarketDataEventProcessor::unresolvedEvents()
+{
     return totalUnresolvedEvents();
 }
 
-std::string ShardedLobMarketDataEventProcessor::stableStateDigest() {
+std::string ShardedLobMarketDataEventProcessor::stableStateDigest()
+{
     const auto snapshot = mergedSnapshot(
         processed_count_,
         0,
-        std::numeric_limits<std::size_t>::max()
-    );
+        std::numeric_limits<std::size_t>::max());
 
     std::ostringstream out;
     out << "processed_events=" << processed_count_
         << ";unresolved_events=" << snapshot.unresolved_events
         << ";instrument_count=" << snapshot.instruments.size();
 
-    for (const auto& instrument : snapshot.instruments) {
+    for (const auto& instrument : snapshot.instruments)
+    {
         out << "|instrument=" << instrument.instrument_id
             << ",orders=" << instrument.resting_orders
             << ",best_bid=" << formatOptionalPrice(instrument.best_bid)
@@ -221,8 +251,10 @@ std::string ShardedLobMarketDataEventProcessor::stableStateDigest() {
 
         out << ",bids=[";
         bool first = true;
-        for (const auto& level : instrument.bids) {
-            if (!first) {
+        for (const auto& level : instrument.bids)
+        {
+            if (!first)
+            {
                 out << ';';
             }
             first = false;
@@ -232,8 +264,10 @@ std::string ShardedLobMarketDataEventProcessor::stableStateDigest() {
 
         out << ",asks=[";
         first = true;
-        for (const auto& level : instrument.asks) {
-            if (!first) {
+        for (const auto& level : instrument.asks)
+        {
+            if (!first)
+            {
                 out << ';';
             }
             first = false;
@@ -245,32 +279,37 @@ std::string ShardedLobMarketDataEventProcessor::stableStateDigest() {
     return out.str();
 }
 
-void ShardedLobMarketDataEventProcessor::finish() {
-    if (finished_) {
+void ShardedLobMarketDataEventProcessor::finish()
+{
+    if (finished_)
+    {
         return;
     }
 
-    for (auto& worker : workers_) {
+    for (auto& worker : workers_)
+    {
         worker->finish();
     }
     snapshot_writer_.finish();
     finished_ = true;
 }
 
-void ShardedLobMarketDataEventProcessor::finishSnapshots() {
+void ShardedLobMarketDataEventProcessor::finishSnapshots()
+{
     snapshot_writer_.finish();
 }
 
-void ShardedLobMarketDataEventProcessor::printFinalSummary() {
+void ShardedLobMarketDataEventProcessor::printFinalSummary()
+{
     printFinalSummary(out_);
 }
 
-void ShardedLobMarketDataEventProcessor::printFinalSummary(std::ostream& out) {
+void ShardedLobMarketDataEventProcessor::printFinalSummary(std::ostream& out)
+{
     const auto snapshot = mergedSnapshot(
         processed_count_,
         0,
-        std::numeric_limits<std::size_t>::max()
-    );
+        std::numeric_limits<std::size_t>::max());
 
     out << "Final LOB Summary\n"
         << "worker_count=" << workerCount() << '\n'
@@ -281,7 +320,8 @@ void ShardedLobMarketDataEventProcessor::printFinalSummary(std::ostream& out) {
         << "unknown_modify_skipped_count=" << totalUnknownModifySkippedCount() << '\n'
         << "unknown_cancel_skipped_count=" << totalUnknownCancelSkippedCount() << '\n';
 
-    for (const auto& instrument : snapshot.instruments) {
+    for (const auto& instrument : snapshot.instruments)
+    {
         out << "instrument_id=" << instrument.instrument_id
             << " resting_orders=" << instrument.resting_orders
             << " best_bid=" << formatOptionalPrice(instrument.best_bid)
@@ -290,18 +330,21 @@ void ShardedLobMarketDataEventProcessor::printFinalSummary(std::ostream& out) {
 }
 
 std::uint64_t ShardedLobMarketDataEventProcessor::resolveInstrumentId(
-    const MarketDataEvent& event
-) const {
-    if (event.instrument_id != 0) {
+    const MarketDataEvent& event) const
+{
+    if (event.instrument_id != 0)
+    {
         return event.instrument_id;
     }
 
-    if (event.order_id == 0) {
+    if (event.order_id == 0)
+    {
         return 0;
     }
 
     const auto it = router_orders_.find(event.order_id);
-    if (it == router_orders_.end()) {
+    if (it == router_orders_.end())
+    {
         return 0;
     }
 
@@ -309,44 +352,53 @@ std::uint64_t ShardedLobMarketDataEventProcessor::resolveInstrumentId(
 }
 
 std::size_t ShardedLobMarketDataEventProcessor::workerIndex(
-    std::uint64_t instrument_id
-) const noexcept {
+    std::uint64_t instrument_id) const noexcept
+{
     return static_cast<std::size_t>(instrument_id % workers_.size());
 }
 
-void ShardedLobMarketDataEventProcessor::updateRouterAndDispatch(MarketDataEvent event) {
-    switch (event.action) {
-        case Action::Add:
-        case Action::Modify:
-            if (hasValidRestingState(event)) {
-                const auto it = router_orders_.find(event.order_id);
-                if (it != router_orders_.end() && it->second.instrument_id != event.instrument_id) {
-                    enqueueFullCancel(it->second.instrument_id, event.order_id, event);
-                }
-                router_orders_[event.order_id] = RouterOrder{
-                    .instrument_id = event.instrument_id,
-                    .size = event.size,
-                };
-            }
-            break;
-        case Action::Cancel: {
+void ShardedLobMarketDataEventProcessor::updateRouterAndDispatch(MarketDataEvent event)
+{
+    switch (event.action)
+    {
+    case Action::Add:
+    case Action::Modify:
+        if (hasValidRestingState(event))
+        {
             const auto it = router_orders_.find(event.order_id);
-            if (it != router_orders_.end()) {
-                if (event.size == 0 || event.size >= it->second.size) {
-                    router_orders_.erase(it);
-                } else {
-                    it->second.size -= event.size;
-                }
+            if (it != router_orders_.end() && it->second.instrument_id != event.instrument_id)
+            {
+                enqueueFullCancel(it->second.instrument_id, event.order_id, event);
             }
-            break;
+            router_orders_[event.order_id] = RouterOrder{
+                .instrument_id = event.instrument_id,
+                .size = event.size,
+            };
         }
-        case Action::Clear:
-            eraseRouterOrdersForInstrument(event.instrument_id);
-            break;
-        case Action::Trade:
-        case Action::Fill:
-        case Action::None:
-            break;
+        break;
+    case Action::Cancel:
+    {
+        const auto it = router_orders_.find(event.order_id);
+        if (it != router_orders_.end())
+        {
+            if (event.size == 0 || event.size >= it->second.size)
+            {
+                router_orders_.erase(it);
+            }
+            else
+            {
+                it->second.size -= event.size;
+            }
+        }
+        break;
+    }
+    case Action::Clear:
+        eraseRouterOrdersForInstrument(event.instrument_id);
+        break;
+    case Action::Trade:
+    case Action::Fill:
+    case Action::None:
+        break;
     }
 
     workers_[workerIndex(event.instrument_id)]->enqueue(std::move(event));
@@ -355,8 +407,8 @@ void ShardedLobMarketDataEventProcessor::updateRouterAndDispatch(MarketDataEvent
 void ShardedLobMarketDataEventProcessor::enqueueFullCancel(
     std::uint64_t instrument_id,
     std::uint64_t order_id,
-    const MarketDataEvent& source
-) {
+    const MarketDataEvent& source)
+{
     MarketDataEvent cancel = source;
     cancel.instrument_id = instrument_id;
     cancel.order_id = order_id;
@@ -366,36 +418,44 @@ void ShardedLobMarketDataEventProcessor::enqueueFullCancel(
 }
 
 void ShardedLobMarketDataEventProcessor::eraseRouterOrdersForInstrument(
-    std::uint64_t instrument_id
-) {
-    for (auto it = router_orders_.begin(); it != router_orders_.end();) {
-        if (it->second.instrument_id == instrument_id) {
+    std::uint64_t instrument_id)
+{
+    for (auto it = router_orders_.begin(); it != router_orders_.end();)
+    {
+        if (it->second.instrument_id == instrument_id)
+        {
             it = router_orders_.erase(it);
-        } else {
+        }
+        else
+        {
             ++it;
         }
     }
 }
 
-void ShardedLobMarketDataEventProcessor::maybePrintSnapshot(std::uint64_t timestamp) {
-    if (config_.snapshot_interval_events == 0 || snapshot_count_ >= config_.max_snapshots) {
+void ShardedLobMarketDataEventProcessor::maybePrintSnapshot(std::uint64_t timestamp)
+{
+    if (config_.snapshot_interval_events == 0 || snapshot_count_ >= config_.max_snapshots)
+    {
         return;
     }
 
-    if (processed_count_ % config_.snapshot_interval_events != 0) {
+    if (processed_count_ % config_.snapshot_interval_events != 0)
+    {
         return;
     }
 
     snapshot_writer_.write(mergedSnapshot(
         processed_count_,
         timestamp,
-        config_.snapshot_depth
-    ));
+        config_.snapshot_depth));
     ++snapshot_count_;
 }
 
-void ShardedLobMarketDataEventProcessor::drainWorkers() {
-    for (auto& worker : workers_) {
+void ShardedLobMarketDataEventProcessor::drainWorkers()
+{
+    for (auto& worker : workers_)
+    {
         worker->drain();
     }
 }
@@ -403,8 +463,8 @@ void ShardedLobMarketDataEventProcessor::drainWorkers() {
 BookManagerSnapshot ShardedLobMarketDataEventProcessor::mergedSnapshot(
     std::size_t event_count,
     std::uint64_t timestamp,
-    std::size_t depth
-) {
+    std::size_t depth)
+{
     drainWorkers();
 
     BookManagerSnapshot merged;
@@ -413,55 +473,64 @@ BookManagerSnapshot ShardedLobMarketDataEventProcessor::mergedSnapshot(
     merged.processed_events = processed_count_;
     merged.unresolved_events = totalUnresolvedEvents();
 
-    for (const auto& worker : workers_) {
+    for (const auto& worker : workers_)
+    {
         auto worker_snapshot = worker->books().snapshot(event_count, timestamp, depth);
-        for (auto& instrument : worker_snapshot.instruments) {
+        for (auto& instrument : worker_snapshot.instruments)
+        {
             merged.instruments.push_back(std::move(instrument));
         }
     }
 
-    std::sort(merged.instruments.begin(), merged.instruments.end(), [](const auto& lhs, const auto& rhs) {
-        return lhs.instrument_id < rhs.instrument_id;
-    });
+    std::sort(merged.instruments.begin(), merged.instruments.end(), [](const auto& lhs, const auto& rhs)
+              { return lhs.instrument_id < rhs.instrument_id; });
 
     return merged;
 }
 
-std::size_t ShardedLobMarketDataEventProcessor::totalUnresolvedEvents() {
+std::size_t ShardedLobMarketDataEventProcessor::totalUnresolvedEvents()
+{
     drainWorkers();
 
     std::size_t total = router_unresolved_events_;
-    for (const auto& worker : workers_) {
+    for (const auto& worker : workers_)
+    {
         total += worker->books().unresolvedEvents();
     }
     return total;
 }
 
-std::size_t ShardedLobMarketDataEventProcessor::totalUnknownModifyRecoveredAsAddCount() {
+std::size_t ShardedLobMarketDataEventProcessor::totalUnknownModifyRecoveredAsAddCount()
+{
     drainWorkers();
 
     std::size_t total = 0;
-    for (const auto& worker : workers_) {
+    for (const auto& worker : workers_)
+    {
         total += worker->books().unknownModifyRecoveredAsAddCount();
     }
     return total;
 }
 
-std::size_t ShardedLobMarketDataEventProcessor::totalUnknownModifySkippedCount() {
+std::size_t ShardedLobMarketDataEventProcessor::totalUnknownModifySkippedCount()
+{
     drainWorkers();
 
     std::size_t total = 0;
-    for (const auto& worker : workers_) {
+    for (const auto& worker : workers_)
+    {
         total += worker->books().unknownModifySkippedCount();
     }
     return total;
 }
 
-std::size_t ShardedLobMarketDataEventProcessor::totalUnknownCancelSkippedCount() {
+std::size_t ShardedLobMarketDataEventProcessor::totalUnknownCancelSkippedCount()
+{
     drainWorkers();
 
     std::size_t total = 0;
-    for (const auto& worker : workers_) {
+    for (const auto& worker : workers_)
+    {
         total += worker->books().unknownCancelSkippedCount();
     }
     return total;

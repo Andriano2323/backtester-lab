@@ -7,17 +7,18 @@
 #include <filesystem>
 #include <iosfwd>
 
-namespace md {
+namespace md
+{
 
-class HierarchicalMergeRunner {
-public:
+class HierarchicalMergeRunner
+{
+  public:
     RunResult run(
         const std::filesystem::path& folder_path,
         IMarketDataEventProcessor& processor,
         bool verbose,
         std::ostream& err,
-        InputFormat input_format = InputFormat::Json
-    ) const;
+        InputFormat input_format = InputFormat::Json) const;
 };
 
 } // namespace md

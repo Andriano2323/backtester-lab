@@ -42,7 +42,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Convert .mbo.json/.jsonl/.ndjson L3 NDJSON files to Feather."
     )
-    parser.add_argument("--input", required=True, type=Path, help="Input file or folder")
+    parser.add_argument(
+        "--input", required=True, type=Path, help="Input file or folder"
+    )
     parser.add_argument("--output", required=True, type=Path, help="Output folder")
     parser.add_argument(
         "--batch-size",
@@ -75,10 +77,16 @@ def discover_input_files(input_path: Path) -> list[Path]:
     if not input_path.is_dir():
         raise ValueError(f"input path does not exist or is not readable: {input_path}")
 
-    files = [path for path in input_path.rglob("*") if path.is_file() and is_supported_file(path)]
+    files = [
+        path
+        for path in input_path.rglob("*")
+        if path.is_file() and is_supported_file(path)
+    ]
     files.sort()
     if not files:
-        raise ValueError(f"input folder contains no supported NDJSON files: {input_path}")
+        raise ValueError(
+            f"input folder contains no supported NDJSON files: {input_path}"
+        )
     return files
 
 
@@ -102,7 +110,9 @@ def extract_row(row: dict[str, Any]) -> dict[str, Any]:
     return {
         "ts_recv": scalar_to_string(row.get("ts_recv")),
         "ts_event": scalar_to_string(row.get("ts_event", header.get("ts_event"))),
-        "instrument_id": uint_or_none(row.get("instrument_id", header.get("instrument_id"))),
+        "instrument_id": uint_or_none(
+            row.get("instrument_id", header.get("instrument_id"))
+        ),
         "order_id": scalar_to_string(row.get("order_id")),
         "side": scalar_to_string(row.get("side")),
         "action": scalar_to_string(row.get("action")),
@@ -130,10 +140,7 @@ def flush_batch(pa, schema, columns: dict[str, list[Any]], batches: list[Any]) -
     if not columns["ts_recv"]:
         return
 
-    arrays = [
-        pa.array(columns[field.name], type=field.type)
-        for field in schema
-    ]
+    arrays = [pa.array(columns[field.name], type=field.type) for field in schema]
     batches.append(pa.record_batch(arrays, schema=schema))
 
     for values in columns.values():
@@ -169,7 +176,9 @@ def convert_file(
             try:
                 row = json.loads(line)
             except json.JSONDecodeError as exc:
-                raise ValueError(f"{input_file}:{line_number}: invalid JSON: {exc}") from exc
+                raise ValueError(
+                    f"{input_file}:{line_number}: invalid JSON: {exc}"
+                ) from exc
 
             extracted = extract_row(row)
             for field in FIELDS:

@@ -7,14 +7,18 @@
 #include <utility>
 #include <vector>
 
-namespace md {
+namespace md
+{
 
 template <typename T>
-class NonBlockingQueue {
-public:
+class NonBlockingQueue
+{
+  public:
     explicit NonBlockingQueue(std::size_t batch_size = 256)
-        : batch_size_(batch_size), head_(new BatchNode), tail_(head_) {
-        if (batch_size_ == 0) {
+        : batch_size_(batch_size), head_(new BatchNode), tail_(head_)
+    {
+        if (batch_size_ == 0)
+        {
             throw std::invalid_argument("NonBlockingQueue batch size must be greater than zero");
         }
 
@@ -22,9 +26,11 @@ public:
         consumer_batch_.reserve(batch_size_);
     }
 
-    ~NonBlockingQueue() {
+    ~NonBlockingQueue()
+    {
         BatchNode* node = head_;
-        while (node != nullptr) {
+        while (node != nullptr)
+        {
             BatchNode* next = node->next.load(std::memory_order_relaxed);
             delete node;
             node = next;
@@ -34,17 +40,21 @@ public:
     NonBlockingQueue(const NonBlockingQueue&) = delete;
     NonBlockingQueue& operator=(const NonBlockingQueue&) = delete;
 
-    void push(T value) {
+    void push(T value)
+    {
         producer_batch_.push_back(std::move(value));
         enqueued_count_.fetch_add(1, std::memory_order_relaxed);
 
-        if (producer_batch_.size() >= batch_size_) {
+        if (producer_batch_.size() >= batch_size_)
+        {
             flush();
         }
     }
 
-    void flush() {
-        if (producer_batch_.empty()) {
+    void flush()
+    {
+        if (producer_batch_.empty())
+        {
             return;
         }
 
@@ -58,8 +68,10 @@ public:
         tail_ = raw_node;
     }
 
-    T pop() {
-        if (consumer_index_ >= consumer_batch_.size()) {
+    T pop()
+    {
+        if (consumer_index_ >= consumer_batch_.size())
+        {
             acquireConsumerBatch();
         }
 
@@ -67,24 +79,28 @@ public:
         return std::move(consumer_batch_[consumer_index_++]);
     }
 
-    [[nodiscard]] std::size_t size() const {
+    [[nodiscard]] std::size_t size() const
+    {
         const std::size_t enqueued = enqueued_count_.load(std::memory_order_relaxed);
         const std::size_t dequeued = dequeued_count_.load(std::memory_order_relaxed);
         return enqueued >= dequeued ? enqueued - dequeued : 0;
     }
 
-private:
-    struct BatchNode {
+  private:
+    struct BatchNode
+    {
         std::vector<T> items;
         std::atomic<BatchNode*> next{nullptr};
     };
 
-    void acquireConsumerBatch() {
+    void acquireConsumerBatch()
+    {
         consumer_batch_.clear();
         consumer_index_ = 0;
 
         BatchNode* next = head_->next.load(std::memory_order_acquire);
-        while (next == nullptr) {
+        while (next == nullptr)
+        {
             head_->next.wait(nullptr, std::memory_order_acquire);
             next = head_->next.load(std::memory_order_acquire);
         }

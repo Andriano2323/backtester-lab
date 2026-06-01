@@ -8,10 +8,12 @@
 #include <cstddef>
 #include <optional>
 
-namespace md::lob {
+namespace md::lob
+{
 
-class SimulatedLOB {
-public:
+class SimulatedLOB
+{
+  public:
     SimulatedLOB(const HistoricalLOB& historical, const EngineView& view);
     SimulatedLOB(const HistoricalLobStore& historical, const EngineView& view);
 
@@ -19,7 +21,7 @@ public:
     [[nodiscard]] std::optional<BookLevel> bestAsk(InstrumentId instrument_id) const;
     [[nodiscard]] LobSnapshot snapshot(InstrumentId instrument_id, std::size_t depth) const;
 
-private:
+  private:
     [[nodiscard]] LobSnapshot historicalSnapshot(InstrumentId instrument_id) const;
 
     const HistoricalLOB* historical_{};

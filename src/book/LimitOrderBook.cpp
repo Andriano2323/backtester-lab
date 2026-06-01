@@ -5,27 +5,30 @@
 #include <ostream>
 #include <string>
 
-namespace md {
-namespace {
+namespace md
+{
+namespace
+{
 
 constexpr std::size_t unknown_order_diagnostic_sample_limit = 32;
 
-bool hasValidSide(Side side) {
+bool hasValidSide(Side side)
+{
     return side == Side::Bid || side == Side::Ask;
 }
 
-bool hasValidPrice(std::int64_t price) {
+bool hasValidPrice(std::int64_t price)
+{
     return price != std::numeric_limits<std::int64_t>::max();
 }
 
-bool hasValidRestingState(const MarketDataEvent& event) {
-    return event.order_id != 0
-        && hasValidSide(event.side)
-        && hasValidPrice(event.price)
-        && event.size > 0;
+bool hasValidRestingState(const MarketDataEvent& event)
+{
+    return event.order_id != 0 && hasValidSide(event.side) && hasValidPrice(event.price) && event.size > 0;
 }
 
-std::string formatOptionalPrice(std::optional<std::int64_t> price) {
+std::string formatOptionalPrice(std::optional<std::int64_t> price)
+{
     return price.has_value() ? formatPrice(*price) : "<none>";
 }
 
@@ -34,33 +37,37 @@ std::string formatOptionalPrice(std::optional<std::int64_t> price) {
 LimitOrderBook::LimitOrderBook(std::uint64_t instrument_id)
     : instrument_id_(instrument_id) {}
 
-void LimitOrderBook::apply(const MarketDataEvent& event) {
-    switch (event.action) {
-        case Action::Add:
-            applyAdd(event);
-            break;
-        case Action::Modify:
-            applyModify(event);
-            break;
-        case Action::Cancel:
-            applyCancel(event);
-            break;
-        case Action::Clear:
-            applyClear(event);
-            break;
-        case Action::Trade:
-            applyTrade(event);
-            break;
-        case Action::Fill:
-            applyFill(event);
-            break;
-        case Action::None:
-            break;
+void LimitOrderBook::apply(const MarketDataEvent& event)
+{
+    switch (event.action)
+    {
+    case Action::Add:
+        applyAdd(event);
+        break;
+    case Action::Modify:
+        applyModify(event);
+        break;
+    case Action::Cancel:
+        applyCancel(event);
+        break;
+    case Action::Clear:
+        applyClear(event);
+        break;
+    case Action::Trade:
+        applyTrade(event);
+        break;
+    case Action::Fill:
+        applyFill(event);
+        break;
+    case Action::None:
+        break;
     }
 }
 
-void LimitOrderBook::applyAdd(const MarketDataEvent& event) {
-    if (!hasValidRestingState(event)) {
+void LimitOrderBook::applyAdd(const MarketDataEvent& event)
+{
+    if (!hasValidRestingState(event))
+    {
         return;
     }
 
@@ -74,9 +81,11 @@ void LimitOrderBook::applyAdd(const MarketDataEvent& event) {
     addLevelVolume(event.side, event.price, event.size);
 }
 
-void LimitOrderBook::applyCancel(const MarketDataEvent& event) {
+void LimitOrderBook::applyCancel(const MarketDataEvent& event)
+{
     const auto it = orders_.find(event.order_id);
-    if (it == orders_.end()) {
+    if (it == orders_.end())
+    {
         ++unknown_cancel_skipped_count_;
         recordUnknownOrderDiagnostic(event, "cancel", "skipped");
         return;
@@ -84,32 +93,39 @@ void LimitOrderBook::applyCancel(const MarketDataEvent& event) {
 
     auto& order = it->second;
     const auto cancel_size = event.size == 0
-        ? order.size
-        : std::min(event.size, order.size);
+                                 ? order.size
+                                 : std::min(event.size, order.size);
 
     removeLevelVolume(order.side, order.price, cancel_size);
     order.size -= cancel_size;
 
-    if (order.size == 0) {
+    if (order.size == 0)
+    {
         orders_.erase(it);
     }
 }
 
-void LimitOrderBook::applyModify(const MarketDataEvent& event) {
+void LimitOrderBook::applyModify(const MarketDataEvent& event)
+{
     const auto it = orders_.find(event.order_id);
-    if (it == orders_.end()) {
-        if (hasValidRestingState(event)) {
+    if (it == orders_.end())
+    {
+        if (hasValidRestingState(event))
+        {
             ++unknown_modify_recovered_as_add_count_;
             recordUnknownOrderDiagnostic(event, "modify", "recovered_as_add");
             applyAdd(event);
-        } else {
+        }
+        else
+        {
             ++unknown_modify_skipped_count_;
             recordUnknownOrderDiagnostic(event, "modify", "skipped");
         }
         return;
     }
 
-    if (!hasValidRestingState(event)) {
+    if (!hasValidRestingState(event))
+    {
         return;
     }
 
@@ -122,7 +138,8 @@ void LimitOrderBook::applyModify(const MarketDataEvent& event) {
     addLevelVolume(event.side, event.price, event.size);
 }
 
-void LimitOrderBook::applyClear(const MarketDataEvent& event) {
+void LimitOrderBook::applyClear(const MarketDataEvent& event)
+{
     (void)event;
 
     bids_.clear();
@@ -130,19 +147,23 @@ void LimitOrderBook::applyClear(const MarketDataEvent& event) {
     orders_.clear();
 }
 
-void LimitOrderBook::applyTrade(const MarketDataEvent& event) {
+void LimitOrderBook::applyTrade(const MarketDataEvent& event)
+{
     (void)event;
     ++trade_count_;
 }
 
-void LimitOrderBook::applyFill(const MarketDataEvent& event) {
+void LimitOrderBook::applyFill(const MarketDataEvent& event)
+{
     (void)event;
     ++fill_count_;
 }
 
-void LimitOrderBook::removeOrder(std::uint64_t order_id) {
+void LimitOrderBook::removeOrder(std::uint64_t order_id)
+{
     const auto it = orders_.find(order_id);
-    if (it == orders_.end()) {
+    if (it == orders_.end())
+    {
         return;
     }
 
@@ -150,33 +171,49 @@ void LimitOrderBook::removeOrder(std::uint64_t order_id) {
     orders_.erase(it);
 }
 
-void LimitOrderBook::addLevelVolume(Side side, std::int64_t price, std::uint64_t size) {
-    if (side == Side::Bid) {
+void LimitOrderBook::addLevelVolume(Side side, std::int64_t price, std::uint64_t size)
+{
+    if (side == Side::Bid)
+    {
         bids_[price] += size;
-    } else if (side == Side::Ask) {
+    }
+    else if (side == Side::Ask)
+    {
         asks_[price] += size;
     }
 }
 
-void LimitOrderBook::removeLevelVolume(Side side, std::int64_t price, std::uint64_t size) {
-    if (side == Side::Bid) {
+void LimitOrderBook::removeLevelVolume(Side side, std::int64_t price, std::uint64_t size)
+{
+    if (side == Side::Bid)
+    {
         const auto it = bids_.find(price);
-        if (it == bids_.end()) {
+        if (it == bids_.end())
+        {
             return;
         }
-        if (it->second <= size) {
+        if (it->second <= size)
+        {
             bids_.erase(it);
-        } else {
+        }
+        else
+        {
             it->second -= size;
         }
-    } else if (side == Side::Ask) {
+    }
+    else if (side == Side::Ask)
+    {
         const auto it = asks_.find(price);
-        if (it == asks_.end()) {
+        if (it == asks_.end())
+        {
             return;
         }
-        if (it->second <= size) {
+        if (it->second <= size)
+        {
             asks_.erase(it);
-        } else {
+        }
+        else
+        {
             it->second -= size;
         }
     }
@@ -185,9 +222,10 @@ void LimitOrderBook::removeLevelVolume(Side side, std::int64_t price, std::uint6
 void LimitOrderBook::recordUnknownOrderDiagnostic(
     const MarketDataEvent& event,
     const std::string& operation,
-    const std::string& decision
-) {
-    if (unknown_order_diagnostics_.size() >= unknown_order_diagnostic_sample_limit) {
+    const std::string& decision)
+{
+    if (unknown_order_diagnostics_.size() >= unknown_order_diagnostic_sample_limit)
+    {
         return;
     }
 
@@ -206,29 +244,36 @@ void LimitOrderBook::recordUnknownOrderDiagnostic(
     });
 }
 
-std::optional<std::int64_t> LimitOrderBook::bestBid() const {
-    if (bids_.empty()) {
+std::optional<std::int64_t> LimitOrderBook::bestBid() const
+{
+    if (bids_.empty())
+    {
         return std::nullopt;
     }
 
     return bids_.begin()->first;
 }
 
-std::optional<std::int64_t> LimitOrderBook::bestAsk() const {
-    if (asks_.empty()) {
+std::optional<std::int64_t> LimitOrderBook::bestAsk() const
+{
+    if (asks_.empty())
+    {
         return std::nullopt;
     }
 
     return asks_.begin()->first;
 }
 
-std::uint64_t LimitOrderBook::volumeAt(Side side, std::int64_t price) const {
-    if (side == Side::Bid) {
+std::uint64_t LimitOrderBook::volumeAt(Side side, std::int64_t price) const
+{
+    if (side == Side::Bid)
+    {
         const auto it = bids_.find(price);
         return it == bids_.end() ? 0 : it->second;
     }
 
-    if (side == Side::Ask) {
+    if (side == Side::Ask)
+    {
         const auto it = asks_.find(price);
         return it == asks_.end() ? 0 : it->second;
     }
@@ -236,64 +281,80 @@ std::uint64_t LimitOrderBook::volumeAt(Side side, std::int64_t price) const {
     return 0;
 }
 
-std::size_t LimitOrderBook::restingOrderCount() const noexcept {
+std::size_t LimitOrderBook::restingOrderCount() const noexcept
+{
     return orders_.size();
 }
 
-std::size_t LimitOrderBook::skippedUnknownOrderCount() const noexcept {
+std::size_t LimitOrderBook::skippedUnknownOrderCount() const noexcept
+{
     return unknown_modify_skipped_count_ + unknown_cancel_skipped_count_;
 }
 
-std::size_t LimitOrderBook::unknownModifyRecoveredAsAddCount() const noexcept {
+std::size_t LimitOrderBook::unknownModifyRecoveredAsAddCount() const noexcept
+{
     return unknown_modify_recovered_as_add_count_;
 }
 
-std::size_t LimitOrderBook::unknownModifySkippedCount() const noexcept {
+std::size_t LimitOrderBook::unknownModifySkippedCount() const noexcept
+{
     return unknown_modify_skipped_count_;
 }
 
-std::size_t LimitOrderBook::unknownCancelSkippedCount() const noexcept {
+std::size_t LimitOrderBook::unknownCancelSkippedCount() const noexcept
+{
     return unknown_cancel_skipped_count_;
 }
 
-std::size_t LimitOrderBook::tradeCount() const noexcept {
+std::size_t LimitOrderBook::tradeCount() const noexcept
+{
     return trade_count_;
 }
 
-std::size_t LimitOrderBook::fillCount() const noexcept {
+std::size_t LimitOrderBook::fillCount() const noexcept
+{
     return fill_count_;
 }
 
-std::uint64_t LimitOrderBook::instrumentId() const noexcept {
+std::uint64_t LimitOrderBook::instrumentId() const noexcept
+{
     return instrument_id_;
 }
 
-bool LimitOrderBook::containsOrder(std::uint64_t order_id) const noexcept {
+bool LimitOrderBook::containsOrder(std::uint64_t order_id) const noexcept
+{
     return orders_.find(order_id) != orders_.end();
 }
 
-const LimitOrderBook::BidLevels& LimitOrderBook::bidLevelsView() const noexcept {
+const LimitOrderBook::BidLevels& LimitOrderBook::bidLevelsView() const noexcept
+{
     return bids_;
 }
 
-const LimitOrderBook::AskLevels& LimitOrderBook::askLevelsView() const noexcept {
+const LimitOrderBook::AskLevels& LimitOrderBook::askLevelsView() const noexcept
+{
     return asks_;
 }
 
-std::vector<std::pair<std::int64_t, std::uint64_t>> LimitOrderBook::bidLevels() const {
+std::vector<std::pair<std::int64_t, std::uint64_t>> LimitOrderBook::bidLevels() const
+{
     return {bids_.begin(), bids_.end()};
 }
 
-std::vector<std::pair<std::int64_t, std::uint64_t>> LimitOrderBook::askLevels() const {
+std::vector<std::pair<std::int64_t, std::uint64_t>> LimitOrderBook::askLevels() const
+{
     return {asks_.begin(), asks_.end()};
 }
 
-std::vector<std::pair<std::int64_t, std::uint64_t>> LimitOrderBook::bidLevels(std::size_t depth) const {
+std::vector<std::pair<std::int64_t, std::uint64_t>> LimitOrderBook::bidLevels(std::size_t depth) const
+{
     std::vector<std::pair<std::int64_t, std::uint64_t>> levels;
     levels.reserve(std::min(depth, bids_.size()));
     std::size_t copied = 0;
-    for (const auto& level : bids_) {
-        if (copied++ >= depth) {
+    for (const auto& level : bids_)
+    {
+        if (copied++ >= depth)
+        {
             break;
         }
         levels.push_back(level);
@@ -301,12 +362,15 @@ std::vector<std::pair<std::int64_t, std::uint64_t>> LimitOrderBook::bidLevels(st
     return levels;
 }
 
-std::vector<std::pair<std::int64_t, std::uint64_t>> LimitOrderBook::askLevels(std::size_t depth) const {
+std::vector<std::pair<std::int64_t, std::uint64_t>> LimitOrderBook::askLevels(std::size_t depth) const
+{
     std::vector<std::pair<std::int64_t, std::uint64_t>> levels;
     levels.reserve(std::min(depth, asks_.size()));
     std::size_t copied = 0;
-    for (const auto& level : asks_) {
-        if (copied++ >= depth) {
+    for (const auto& level : asks_)
+    {
+        if (copied++ >= depth)
+        {
             break;
         }
         levels.push_back(level);
@@ -314,11 +378,13 @@ std::vector<std::pair<std::int64_t, std::uint64_t>> LimitOrderBook::askLevels(st
     return levels;
 }
 
-const std::vector<UnknownOrderDiagnostic>& LimitOrderBook::unknownOrderDiagnostics() const noexcept {
+const std::vector<UnknownOrderDiagnostic>& LimitOrderBook::unknownOrderDiagnostics() const noexcept
+{
     return unknown_order_diagnostics_;
 }
 
-void LimitOrderBook::printSnapshot(std::ostream& out, std::size_t depth) const {
+void LimitOrderBook::printSnapshot(std::ostream& out, std::size_t depth) const
+{
     out << "instrument_id=" << instrument_id_
         << " resting_orders=" << orders_.size()
         << " best_bid=" << formatOptionalPrice(bestBid())
@@ -326,8 +392,10 @@ void LimitOrderBook::printSnapshot(std::ostream& out, std::size_t depth) const {
 
     out << "  bids:\n";
     std::size_t printed = 0;
-    for (const auto& [price, volume] : bids_) {
-        if (printed++ >= depth) {
+    for (const auto& [price, volume] : bids_)
+    {
+        if (printed++ >= depth)
+        {
             break;
         }
         out << "    " << formatPrice(price) << " x " << volume << '\n';
@@ -335,8 +403,10 @@ void LimitOrderBook::printSnapshot(std::ostream& out, std::size_t depth) const {
 
     out << "  asks:\n";
     printed = 0;
-    for (const auto& [price, volume] : asks_) {
-        if (printed++ >= depth) {
+    for (const auto& [price, volume] : asks_)
+    {
+        if (printed++ >= depth)
+        {
             break;
         }
         out << "    " << formatPrice(price) << " x " << volume << '\n';

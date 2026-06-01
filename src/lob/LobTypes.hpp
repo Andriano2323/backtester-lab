@@ -4,7 +4,8 @@
 
 #include <cstdint>
 
-namespace md::lob {
+namespace md::lob
+{
 
 using InstrumentId = std::uint64_t;
 using HistoricalOrderId = std::uint64_t;

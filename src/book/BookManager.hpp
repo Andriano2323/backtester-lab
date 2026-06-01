@@ -10,10 +10,12 @@
 #include <string>
 #include <unordered_map>
 
-namespace md {
+namespace md
+{
 
-class BookManager {
-public:
+class BookManager
+{
+  public:
     void apply(const MarketDataEvent& event);
 
     [[nodiscard]] const LimitOrderBook* findBook(std::uint64_t instrument_id) const;
@@ -29,13 +31,12 @@ public:
     [[nodiscard]] BookManagerSnapshot snapshot(
         std::size_t event_count,
         std::uint64_t timestamp,
-        std::size_t depth
-    ) const;
+        std::size_t depth) const;
 
     void printSnapshot(std::ostream& out, std::size_t depth) const;
     void printFinalBestBidAsk(std::ostream& out) const;
 
-private:
+  private:
     [[nodiscard]] std::uint64_t resolveInstrumentId(const MarketDataEvent& event) const;
     void updateOrderMapping(const MarketDataEvent& event, const LimitOrderBook& book);
     void eraseOrderMappingIfMatches(std::uint64_t order_id, std::uint64_t instrument_id);

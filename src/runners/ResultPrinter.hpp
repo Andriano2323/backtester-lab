@@ -6,7 +6,8 @@
 #include <iosfwd>
 #include <vector>
 
-namespace md {
+namespace md
+{
 
 void printRunResult(const RunResult& result, std::ostream& out, bool verbose, std::size_t max_events_to_print);
 void printHistoricalLobSummary(const lob::HistoricalLobStore& store, std::ostream& out, std::size_t depth);

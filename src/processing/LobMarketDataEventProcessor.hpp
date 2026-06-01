@@ -7,26 +7,27 @@
 #include <cstddef>
 #include <iosfwd>
 
-namespace md {
+namespace md
+{
 
-struct LobProcessorConfig {
+struct LobProcessorConfig
+{
     std::size_t snapshot_depth = 5;
     std::size_t snapshot_interval_events = 100'000;
     std::size_t max_snapshots = 5;
     SnapshotWriterMode snapshot_writer_mode = SnapshotWriterMode::Sync;
 };
 
-class LobMarketDataEventProcessor final : public IMarketDataEventProcessor {
-public:
+class LobMarketDataEventProcessor final : public IMarketDataEventProcessor
+{
+  public:
     explicit LobMarketDataEventProcessor(
         std::ostream& out,
-        LobProcessorConfig config = {}
-    );
+        LobProcessorConfig config = {});
     LobMarketDataEventProcessor(
         std::ostream& out,
         std::ostream& snapshot_out,
-        LobProcessorConfig config
-    );
+        LobProcessorConfig config);
 
     void processMarketDataEvent(const MarketDataEvent& event) override;
 
@@ -39,7 +40,7 @@ public:
     void printFinalSummary() const;
     void printFinalSummary(std::ostream& out) const;
 
-private:
+  private:
     void maybePrintSnapshot(std::uint64_t timestamp);
 
     std::ostream& out_;

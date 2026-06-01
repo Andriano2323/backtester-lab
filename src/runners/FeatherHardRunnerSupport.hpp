@@ -6,12 +6,12 @@
 #include <iosfwd>
 #include <vector>
 
-namespace md {
+namespace md
+{
 
 ProducerSet startFeatherProducerThreads(
     const std::vector<std::filesystem::path>& files,
     bool verbose,
-    std::ostream& err
-);
+    std::ostream& err);
 
 } // namespace md

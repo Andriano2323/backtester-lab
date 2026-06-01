@@ -1,7 +1,7 @@
 #include "runners/BenchmarkRunner.hpp"
 
-#include "processing/LoggingMarketDataEventProcessor.hpp"
 #include "processing/LobMarketDataEventProcessor.hpp"
+#include "processing/LoggingMarketDataEventProcessor.hpp"
 #include "processing/ShardedLobMarketDataEventProcessor.hpp"
 #include "runners/FlatMergeRunner.hpp"
 #include "runners/HierarchicalMergeRunner.hpp"
@@ -10,10 +10,13 @@
 #include <string>
 #include <utility>
 
-namespace md {
-namespace {
+namespace md
+{
+namespace
+{
 
-LobProcessorConfig benchmarkLobConfig() {
+LobProcessorConfig benchmarkLobConfig()
+{
     LobProcessorConfig config;
     config.snapshot_depth = 0;
     config.snapshot_interval_events = 0;
@@ -25,8 +28,8 @@ BenchmarkResult makeLobBenchmarkResult(
     RunResult result,
     const LobMarketDataEventProcessor& processor,
     InputFormat input_format,
-    std::size_t lob_workers
-) {
+    std::size_t lob_workers)
+{
     BenchmarkResult benchmark;
     benchmark.result = std::move(result);
     benchmark.input_format = std::string(inputFormatName(input_format));
@@ -41,8 +44,8 @@ BenchmarkResult makeShardedLobBenchmarkResult(
     RunResult result,
     ShardedLobMarketDataEventProcessor& processor,
     InputFormat input_format,
-    std::size_t lob_workers
-) {
+    std::size_t lob_workers)
+{
     processor.finish();
 
     BenchmarkResult benchmark;
@@ -55,7 +58,8 @@ BenchmarkResult makeShardedLobBenchmarkResult(
     return benchmark;
 }
 
-BenchmarkResult makeLoggingBenchmarkResult(RunResult result, InputFormat input_format) {
+BenchmarkResult makeLoggingBenchmarkResult(RunResult result, InputFormat input_format)
+{
     BenchmarkResult benchmark;
     benchmark.result = std::move(result);
     benchmark.input_format = std::string(inputFormatName(input_format));
@@ -70,8 +74,8 @@ std::vector<BenchmarkResult> runLoggingBenchmark(
     const std::filesystem::path& folder_path,
     InputFormat input_format,
     bool verbose,
-    std::ostream& err
-) {
+    std::ostream& err)
+{
     std::vector<BenchmarkResult> results;
     results.reserve(2);
 
@@ -80,8 +84,7 @@ std::vector<BenchmarkResult> runLoggingBenchmark(
         LoggingMarketDataEventProcessor processor(sink, 0);
         results.push_back(makeLoggingBenchmarkResult(
             FlatMergeRunner{}.run(folder_path, processor, verbose, err, input_format),
-            input_format
-        ));
+            input_format));
     }
 
     {
@@ -89,8 +92,7 @@ std::vector<BenchmarkResult> runLoggingBenchmark(
         LoggingMarketDataEventProcessor processor(sink, 0);
         results.push_back(makeLoggingBenchmarkResult(
             HierarchicalMergeRunner{}.run(folder_path, processor, verbose, err, input_format),
-            input_format
-        ));
+            input_format));
     }
 
     return results;
@@ -101,54 +103,56 @@ std::vector<BenchmarkResult> runLobBenchmark(
     InputFormat input_format,
     bool verbose,
     std::ostream& err,
-    std::size_t lob_workers
-) {
+    std::size_t lob_workers)
+{
     std::vector<BenchmarkResult> results;
     results.reserve(2);
 
     {
         std::ostringstream sink;
-        if (lob_workers > 1) {
+        if (lob_workers > 1)
+        {
             ShardedLobMarketDataEventProcessor processor(sink, lob_workers, benchmarkLobConfig());
             auto result = FlatMergeRunner{}.run(folder_path, processor, verbose, err, input_format);
             results.push_back(makeShardedLobBenchmarkResult(
                 std::move(result),
                 processor,
                 input_format,
-                lob_workers
-            ));
-        } else {
+                lob_workers));
+        }
+        else
+        {
             LobMarketDataEventProcessor processor(sink, benchmarkLobConfig());
             auto result = FlatMergeRunner{}.run(folder_path, processor, verbose, err, input_format);
             results.push_back(makeLobBenchmarkResult(
                 std::move(result),
                 processor,
                 input_format,
-                lob_workers
-            ));
+                lob_workers));
         }
     }
 
     {
         std::ostringstream sink;
-        if (lob_workers > 1) {
+        if (lob_workers > 1)
+        {
             ShardedLobMarketDataEventProcessor processor(sink, lob_workers, benchmarkLobConfig());
             auto result = HierarchicalMergeRunner{}.run(folder_path, processor, verbose, err, input_format);
             results.push_back(makeShardedLobBenchmarkResult(
                 std::move(result),
                 processor,
                 input_format,
-                lob_workers
-            ));
-        } else {
+                lob_workers));
+        }
+        else
+        {
             LobMarketDataEventProcessor processor(sink, benchmarkLobConfig());
             auto result = HierarchicalMergeRunner{}.run(folder_path, processor, verbose, err, input_format);
             results.push_back(makeLobBenchmarkResult(
                 std::move(result),
                 processor,
                 input_format,
-                lob_workers
-            ));
+                lob_workers));
         }
     }
 

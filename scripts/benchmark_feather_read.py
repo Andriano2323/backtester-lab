@@ -33,8 +33,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Compare JSON NDJSON scan/parse speed with Feather read_table speed."
     )
-    parser.add_argument("--json-input", required=True, type=Path, help="Input NDJSON file or folder")
-    parser.add_argument("--feather-input", required=True, type=Path, help="Input Feather file or folder")
+    parser.add_argument(
+        "--json-input", required=True, type=Path, help="Input NDJSON file or folder"
+    )
+    parser.add_argument(
+        "--feather-input", required=True, type=Path, help="Input Feather file or folder"
+    )
     parser.add_argument(
         "--columns",
         default="ts_recv,ts_event,instrument_id,order_id,side,action,price,size",
@@ -50,23 +54,33 @@ def is_supported(path: Path, suffixes: tuple[str, ...]) -> bool:
     return any(name.endswith(suffix) for suffix in suffixes)
 
 
-def discover_files(input_path: Path, suffixes: tuple[str, ...], label: str) -> list[Path]:
+def discover_files(
+    input_path: Path, suffixes: tuple[str, ...], label: str
+) -> list[Path]:
     if input_path.is_file():
         if not is_supported(input_path, suffixes):
             raise ValueError(f"unsupported {label} file extension: {input_path}")
         return [input_path]
 
     if not input_path.is_dir():
-        raise ValueError(f"{label} path does not exist or is not readable: {input_path}")
+        raise ValueError(
+            f"{label} path does not exist or is not readable: {input_path}"
+        )
 
-    files = [path for path in input_path.rglob("*") if path.is_file() and is_supported(path, suffixes)]
+    files = [
+        path
+        for path in input_path.rglob("*")
+        if path.is_file() and is_supported(path, suffixes)
+    ]
     files.sort()
     if not files:
         raise ValueError(f"{label} folder contains no supported files: {input_path}")
     return files
 
 
-def benchmark(label: str, files: list[Path], reader: Callable[[Path], int]) -> tuple[int, float]:
+def benchmark(
+    label: str, files: list[Path], reader: Callable[[Path], int]
+) -> tuple[int, float]:
     started_at = time.perf_counter()
     rows = 0
     for path in files:
@@ -113,7 +127,9 @@ def main(argv: list[str]) -> int:
 
     try:
         json_rows, json_elapsed = benchmark("json", json_files, read_json_rows)
-        feather_rows, feather_elapsed = benchmark("feather", feather_files, read_feather_rows)
+        feather_rows, feather_elapsed = benchmark(
+            "feather", feather_files, read_feather_rows
+        )
     except (OSError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

@@ -5,15 +5,18 @@
 #include <iosfwd>
 #include <string>
 
-namespace md {
+namespace md
+{
 
-enum class Side : char {
+enum class Side : char
+{
     Ask = 'A',
     Bid = 'B',
     None = 'N'
 };
 
-enum class Action : char {
+enum class Action : char
+{
     Add = 'A',
     Modify = 'M',
     Cancel = 'C',
@@ -23,8 +26,9 @@ enum class Action : char {
     None = 'N'
 };
 
-struct MarketDataEvent {
-    std::uint64_t timestamp{};   // Databento index timestamp from ts_recv.
+struct MarketDataEvent
+{
+    std::uint64_t timestamp{}; // Databento index timestamp from ts_recv.
     std::uint64_t ts_recv{};
     std::uint64_t ts_event{};
 

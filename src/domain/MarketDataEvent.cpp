@@ -6,42 +6,61 @@
 #include <sstream>
 #include <tuple>
 
-namespace md {
+namespace md
+{
 
-char toChar(Side side) {
+char toChar(Side side)
+{
     return static_cast<char>(side);
 }
 
-char toChar(Action action) {
+char toChar(Action action)
+{
     return static_cast<char>(action);
 }
 
-std::string sideName(Side side) {
-    switch (side) {
-        case Side::Ask:  return "Ask";
-        case Side::Bid:  return "Bid";
-        case Side::None: return "None";
+std::string sideName(Side side)
+{
+    switch (side)
+    {
+    case Side::Ask:
+        return "Ask";
+    case Side::Bid:
+        return "Bid";
+    case Side::None:
+        return "None";
     }
 
     return "Unknown";
 }
 
-std::string actionName(Action action) {
-    switch (action) {
-        case Action::Add:    return "Add";
-        case Action::Modify: return "Modify";
-        case Action::Cancel: return "Cancel";
-        case Action::Clear:  return "Clear";
-        case Action::Trade:  return "Trade";
-        case Action::Fill:   return "Fill";
-        case Action::None:   return "None";
+std::string actionName(Action action)
+{
+    switch (action)
+    {
+    case Action::Add:
+        return "Add";
+    case Action::Modify:
+        return "Modify";
+    case Action::Cancel:
+        return "Cancel";
+    case Action::Clear:
+        return "Clear";
+    case Action::Trade:
+        return "Trade";
+    case Action::Fill:
+        return "Fill";
+    case Action::None:
+        return "None";
     }
 
     return "Unknown";
 }
 
-std::string formatPrice(std::int64_t price) {
-    if (price == std::numeric_limits<std::int64_t>::max()) {
+std::string formatPrice(std::int64_t price)
+{
+    if (price == std::numeric_limits<std::int64_t>::max())
+    {
         return "UNDEF";
     }
 
@@ -52,7 +71,8 @@ std::string formatPrice(std::int64_t price) {
     return oss.str();
 }
 
-std::string formatEventFields(const MarketDataEvent& event) {
+std::string formatEventFields(const MarketDataEvent& event)
+{
     std::ostringstream oss;
     oss << "timestamp=" << event.timestamp
         << ", order_id=" << event.order_id
@@ -63,12 +83,13 @@ std::string formatEventFields(const MarketDataEvent& event) {
     return oss.str();
 }
 
-bool eventComesBefore(const MarketDataEvent& lhs, const MarketDataEvent& rhs) {
-    return std::tie(lhs.timestamp, lhs.source_file_id, lhs.source_sequence)
-         < std::tie(rhs.timestamp, rhs.source_file_id, rhs.source_sequence);
+bool eventComesBefore(const MarketDataEvent& lhs, const MarketDataEvent& rhs)
+{
+    return std::tie(lhs.timestamp, lhs.source_file_id, lhs.source_sequence) < std::tie(rhs.timestamp, rhs.source_file_id, rhs.source_sequence);
 }
 
-std::ostream& operator<<(std::ostream& os, const MarketDataEvent& event) {
+std::ostream& operator<<(std::ostream& os, const MarketDataEvent& event)
+{
     os << "MarketDataEvent{"
        << "timestamp=" << event.timestamp
        << ", ts_recv=" << event.ts_recv

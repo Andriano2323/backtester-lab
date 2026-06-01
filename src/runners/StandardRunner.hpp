@@ -6,16 +6,17 @@
 #include <filesystem>
 #include <iosfwd>
 
-namespace md {
+namespace md
+{
 
-class StandardRunner {
-public:
+class StandardRunner
+{
+  public:
     RunResult run(
         const std::filesystem::path& file_path,
         IMarketDataEventProcessor& processor,
         bool verbose,
-        std::ostream& err
-    ) const;
+        std::ostream& err) const;
 };
 
 } // namespace md

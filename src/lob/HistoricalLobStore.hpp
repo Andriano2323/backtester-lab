@@ -11,10 +11,12 @@
 #include <unordered_map>
 #include <vector>
 
-namespace md::lob {
+namespace md::lob
+{
 
-class HistoricalLobStore {
-public:
+class HistoricalLobStore
+{
+  public:
     void apply(const MarketDataEvent& event);
 
     [[nodiscard]] std::optional<BookLevel> bestBid(InstrumentId instrument_id) const;
@@ -26,7 +28,7 @@ public:
     [[nodiscard]] std::size_t instrumentCount() const noexcept;
     [[nodiscard]] std::string stableStateDigest() const;
 
-private:
+  private:
     std::unordered_map<InstrumentId, HistoricalLOB> books_;
     mutable std::shared_mutex mutex_;
 };
