@@ -1,6 +1,9 @@
 .idea/
 3rdparty/*
 build
+/build-tsan/
+/data/
+/data_feather/
 log
 .claude
 CLAUDE.md
@@ -282,3 +285,4 @@ __marimo__/
 # Editor swap files
 *.swp
 .*.swp
+/Data/

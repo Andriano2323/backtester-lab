@@ -1,7 +1,6 @@
 #include "domain/MarketDataEvent.hpp"
 
 #include <iomanip>
-#include <limits>
 #include <ostream>
 #include <sstream>
 #include <tuple>
@@ -57,16 +56,16 @@ std::string actionName(Action action)
     return "Unknown";
 }
 
-std::string formatPrice(std::int64_t price)
+std::string formatPrice(Price price)
 {
-    if (price == std::numeric_limits<std::int64_t>::max())
+    if (price == undefined_price)
     {
         return "UNDEF";
     }
 
     std::ostringstream oss;
     oss << std::fixed << std::setprecision(9)
-        << static_cast<long double>(price) / 1'000'000'000.0L;
+        << static_cast<long double>(price) / static_cast<long double>(price_scale);
 
     return oss.str();
 }

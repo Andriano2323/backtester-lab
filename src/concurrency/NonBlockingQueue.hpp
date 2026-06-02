@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -79,6 +80,17 @@ class NonBlockingQueue
         return std::move(consumer_batch_[consumer_index_++]);
     }
 
+    std::optional<T> tryPop()
+    {
+        if (consumer_index_ >= consumer_batch_.size() && !tryAcquireConsumerBatch())
+        {
+            return std::nullopt;
+        }
+
+        dequeued_count_.fetch_add(1, std::memory_order_relaxed);
+        return std::move(consumer_batch_[consumer_index_++]);
+    }
+
     [[nodiscard]] std::size_t size() const
     {
         const std::size_t enqueued = enqueued_count_.load(std::memory_order_relaxed);
@@ -109,6 +121,24 @@ class NonBlockingQueue
         BatchNode* old_head = head_;
         head_ = next;
         delete old_head;
+    }
+
+    bool tryAcquireConsumerBatch()
+    {
+        consumer_batch_.clear();
+        consumer_index_ = 0;
+
+        BatchNode* next = head_->next.load(std::memory_order_acquire);
+        if (next == nullptr)
+        {
+            return false;
+        }
+
+        consumer_batch_.swap(next->items);
+        BatchNode* old_head = head_;
+        head_ = next;
+        delete old_head;
+        return true;
     }
 
     const std::size_t batch_size_;

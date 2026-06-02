@@ -24,6 +24,21 @@ The `run` script builds the project first and then executes the requested mode. 
 
 HW3 multi-engine LOB simulation architecture and demo commands are documented in [`docs/HW3_GROUP3.md`](docs/HW3_GROUP3.md).
 
+The M1 / Group 2 market data feed protocol is documented in
+[`docs/market_data_protocol.md`](docs/market_data_protocol.md). It covers the `BookUpdate`,
+`BookSnapshot`, and `Trade` message schema, publisher/subscriber API, per-instrument `seq_no`
+policy, gap detection, and the feed throughput benchmark.
+
+The M2 / Group 1 order and trade protocol is documented in
+[`docs/order_trade_protocol.md`](docs/order_trade_protocol.md). It covers the order request/event
+schema, `OrderGatewayClient`, `OrderGatewayServer`, validation rules, fill notifications, and the
+order gateway latency benchmark.
+
+The M3 / Group 4 Python Strategy API is documented in
+[`docs/python_strategy_api.md`](docs/python_strategy_api.md). It covers strategy callbacks,
+`backtester.run(...)`, result DataFrames, progress metrics, risk limits, chart helpers, examples,
+and the current synthetic JSONL feed limitations.
+
 ## Manual build
 
 ```bash
