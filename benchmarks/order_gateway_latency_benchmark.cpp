@@ -382,8 +382,8 @@ int runBenchmark(const BenchmarkConfig& config)
         });
 
     const Clock::duration wall_clock = config.threaded
-        ? runThreaded(config, server, client, state, trading_engine_id)
-        : runSingleThreaded(config, server, client, state, trading_engine_id);
+                                           ? runThreaded(config, server, client, state, trading_engine_id)
+                                           : runSingleThreaded(config, server, client, state, trading_engine_id);
 
     verifyState(config, state);
     printResult(config, state, wall_clock);

@@ -1,7 +1,16 @@
 import pytest
 
 from backtester import CppOrderGatewayFacade, Strategy, StrategyContext
-from backtester.types import BookUpdate, OrderAck, OrderAckType, OrderFill, OrderReject, OrderRejectReason, OrderStatus, Side
+from backtester.types import (
+    BookUpdate,
+    OrderAck,
+    OrderAckType,
+    OrderFill,
+    OrderReject,
+    OrderRejectReason,
+    OrderStatus,
+    Side,
+)
 
 
 cpp = pytest.importorskip("_backtester_cpp")
@@ -9,7 +18,9 @@ cpp = pytest.importorskip("_backtester_cpp")
 
 def _new_gateway(trading_engine_id=1):
     channel = cpp.OrderChannel(request_batch_size=1, event_batch_size=1)
-    client = cpp.OrderGatewayClient(trading_engine_id=trading_engine_id, channel=channel)
+    client = cpp.OrderGatewayClient(
+        trading_engine_id=trading_engine_id, channel=channel
+    )
     server = cpp.OrderGatewayServer()
     server.register_engine(trading_engine_id, channel)
     return CppOrderGatewayFacade(client), server

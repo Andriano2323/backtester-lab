@@ -10,7 +10,7 @@ find_package(Threads REQUIRED)
 
 option(ENABLE_COVERAGE "Build with gcov coverage instrumentation" OFF)
 option(ENABLE_ARROW "Build optional Arrow/Feather input support" OFF)
-option(BACKTESTER_BUILD_PYTHON "Build optional pybind11 Python extension" ON)
+option(BACKTESTER_BUILD_PYTHON "Build optional pybind11 Python extension" OFF)
 
 set(INGEST_SOURCES
     src/app/ArgsParser.cpp

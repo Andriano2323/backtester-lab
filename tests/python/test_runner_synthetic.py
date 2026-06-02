@@ -1,5 +1,13 @@
 from backtester import BacktestResult, BacktestRunner, Strategy
-from backtester.types import BookSnapshot, BookUpdate, OrderAck, OrderFill, PriceLevel, Side, Trade
+from backtester.types import (
+    BookSnapshot,
+    BookUpdate,
+    OrderAck,
+    OrderFill,
+    PriceLevel,
+    Side,
+    Trade,
+)
 
 
 def _book_update(timestamp_ns=3, instrument_id=10):
@@ -134,7 +142,9 @@ def test_events_are_processed_in_timestamp_order():
 
     strategy = OrderingStrategy()
 
-    BacktestRunner().run(strategy, events=[_book_update(3), _trade(1), _book_snapshot(2)])
+    BacktestRunner().run(
+        strategy, events=[_book_update(3), _trade(1), _book_snapshot(2)]
+    )
 
     assert strategy.timestamps == [1, 2, 3]
 
@@ -145,7 +155,13 @@ def test_strategy_can_send_order_from_on_book_update():
             self.order_id = None
 
         def on_book_update(self, update, ctx):
-            self.order_id = ctx.send_order(update.instrument_id, Side.BID, update.price, update.size, update.timestamp_ns)
+            self.order_id = ctx.send_order(
+                update.instrument_id,
+                Side.BID,
+                update.price,
+                update.size,
+                update.timestamp_ns,
+            )
 
     strategy = SendingStrategy()
 
@@ -157,7 +173,13 @@ def test_strategy_can_send_order_from_on_book_update():
 def test_sent_order_appears_in_result_order_log_df():
     class SendingStrategy(Strategy):
         def on_book_update(self, update, ctx):
-            ctx.send_order(update.instrument_id, Side.BID, update.price, update.size, update.timestamp_ns)
+            ctx.send_order(
+                update.instrument_id,
+                Side.BID,
+                update.price,
+                update.size,
+                update.timestamp_ns,
+            )
 
     result = BacktestRunner().run(SendingStrategy(), events=[_book_update()])
     order_log = result.order_log_df
@@ -174,7 +196,13 @@ def test_accepted_ack_triggers_strategy_on_ack():
             self.acks = []
 
         def on_book_update(self, update, ctx):
-            ctx.send_order(update.instrument_id, Side.BID, update.price, update.size, update.timestamp_ns)
+            ctx.send_order(
+                update.instrument_id,
+                Side.BID,
+                update.price,
+                update.size,
+                update.timestamp_ns,
+            )
 
         def on_ack(self, ack, ctx):
             self.acks.append(ack)
@@ -194,7 +222,13 @@ def test_injected_fill_triggers_strategy_on_fill():
             self.fills = []
 
         def on_book_update(self, update, ctx):
-            ctx.send_order(update.instrument_id, Side.BID, update.price, update.size, update.timestamp_ns)
+            ctx.send_order(
+                update.instrument_id,
+                Side.BID,
+                update.price,
+                update.size,
+                update.timestamp_ns,
+            )
 
         def on_fill(self, fill, ctx):
             self.fills.append(fill)
@@ -212,9 +246,17 @@ def test_injected_fill_triggers_strategy_on_fill():
 def test_fill_appears_in_result_fills_df():
     class FillStrategy(Strategy):
         def on_book_update(self, update, ctx):
-            ctx.send_order(update.instrument_id, Side.BID, update.price, update.size, update.timestamp_ns)
+            ctx.send_order(
+                update.instrument_id,
+                Side.BID,
+                update.price,
+                update.size,
+                update.timestamp_ns,
+            )
 
-    result = BacktestRunner(fill_at_touch=True).run(FillStrategy(), events=[_book_update()])
+    result = BacktestRunner(fill_at_touch=True).run(
+        FillStrategy(), events=[_book_update()]
+    )
     fills = result.fills_df
 
     assert len(fills) == 1

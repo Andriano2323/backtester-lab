@@ -11,15 +11,17 @@ PYTHON_DIR = REPO_ROOT / "python"
 if str(PYTHON_DIR) not in sys.path:
     sys.path.insert(0, str(PYTHON_DIR))
 
-import backtester as backtest
-from backtester import BacktestResult, Strategy
-from backtester.types import BookUpdate, PRICE_SCALE, Side, Trade
+import backtester as backtest  # noqa: E402
+from backtester import BacktestResult, Strategy  # noqa: E402
+from backtester.types import BookUpdate, PRICE_SCALE, Side, Trade  # noqa: E402
 
 
 class MeanReversionStrategy(Strategy):
     """Buy below a rolling average and sell above it."""
 
-    def __init__(self, window: int = 3, threshold: int = PRICE_SCALE // 2, order_size: int = 1) -> None:
+    def __init__(
+        self, window: int = 3, threshold: int = PRICE_SCALE // 2, order_size: int = 1
+    ) -> None:
         self.window = window
         self.threshold = threshold
         self.order_size = order_size
@@ -27,12 +29,23 @@ class MeanReversionStrategy(Strategy):
         self.order_ids: list[int] = []
 
     def on_book_update(self, update, ctx) -> None:
-        self._on_price(update.instrument_id, update.price, update.size, update.timestamp_ns, ctx)
+        self._on_price(
+            update.instrument_id, update.price, update.size, update.timestamp_ns, ctx
+        )
 
     def on_trade(self, trade, ctx) -> None:
-        self._on_price(trade.instrument_id, trade.price, trade.size, trade.timestamp_ns, ctx)
+        self._on_price(
+            trade.instrument_id, trade.price, trade.size, trade.timestamp_ns, ctx
+        )
 
-    def _on_price(self, instrument_id: int, price: int, available_size: int, timestamp_ns: int, ctx) -> None:
+    def _on_price(
+        self,
+        instrument_id: int,
+        price: int,
+        available_size: int,
+        timestamp_ns: int,
+        ctx,
+    ) -> None:
         if len(self.prices) < self.window:
             self.prices.append(price)
             return
@@ -44,9 +57,16 @@ class MeanReversionStrategy(Strategy):
             return
 
         if price <= rolling_average - self.threshold:
-            self.order_ids.append(ctx.send_order(instrument_id, Side.BID, price, size, timestamp_ns))
-        elif price >= rolling_average + self.threshold and ctx.current_position(instrument_id) > 0:
-            self.order_ids.append(ctx.send_order(instrument_id, Side.ASK, price, size, timestamp_ns))
+            self.order_ids.append(
+                ctx.send_order(instrument_id, Side.BID, price, size, timestamp_ns)
+            )
+        elif (
+            price >= rolling_average + self.threshold
+            and ctx.current_position(instrument_id) > 0
+        ):
+            self.order_ids.append(
+                ctx.send_order(instrument_id, Side.ASK, price, size, timestamp_ns)
+            )
 
 
 def example_events() -> list[BookUpdate | Trade]:
@@ -64,7 +84,12 @@ def example_events() -> list[BookUpdate | Trade]:
 
 def run_example() -> BacktestResult:
     strategy = MeanReversionStrategy()
-    return backtest.run(strategy, events=example_events(), fill_at_touch=True, progress_interval_events=100)
+    return backtest.run(
+        strategy,
+        events=example_events(),
+        fill_at_touch=True,
+        progress_interval_events=100,
+    )
 
 
 def main() -> None:

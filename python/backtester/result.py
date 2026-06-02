@@ -106,11 +106,15 @@ class BacktestResult:
         import pandas as pd
 
         if not self.pnl:
-            return pd.Series([], index=pd.Index([], name="timestamp_ns"), name="pnl", dtype="int64")
+            return pd.Series(
+                [], index=pd.Index([], name="timestamp_ns"), name="pnl", dtype="int64"
+            )
 
         return pd.Series(
             [point.pnl for point in self.pnl],
-            index=pd.Index([point.timestamp_ns for point in self.pnl], name="timestamp_ns"),
+            index=pd.Index(
+                [point.timestamp_ns for point in self.pnl], name="timestamp_ns"
+            ),
             name="pnl",
         )
 
@@ -142,14 +146,20 @@ class BacktestResult:
         instrument_ids.update(fill.instrument_id for fill in self.fills)
         return {
             instrument_id: self._order_statistics_for(
-                [record for record in self.order_log if record.instrument_id == instrument_id],
+                [
+                    record
+                    for record in self.order_log
+                    if record.instrument_id == instrument_id
+                ],
                 [fill for fill in self.fills if fill.instrument_id == instrument_id],
             )
             for instrument_id in sorted(instrument_ids)
         }
 
     @staticmethod
-    def _order_statistics_for(order_log: list[OrderLogRecord], fills: list[FillRecord]) -> OrderStatistics:
+    def _order_statistics_for(
+        order_log: list[OrderLogRecord], fills: list[FillRecord]
+    ) -> OrderStatistics:
         sent = 0
         cancelled = 0
         filled = 0
@@ -170,7 +180,9 @@ class BacktestResult:
         if fills:
             filled = max(filled, len(fills))
 
-        return OrderStatistics(sent=sent, cancelled=cancelled, filled=filled, rejected=rejected)
+        return OrderStatistics(
+            sent=sent, cancelled=cancelled, filled=filled, rejected=rejected
+        )
 
     def add_fill(
         self,
@@ -231,7 +243,9 @@ class BacktestResult:
         self.pnl.append(record)
         return record
 
-    def add_metric(self, name: str, value: Any, timestamp_ns: int | None = None) -> MetricRecord:
+    def add_metric(
+        self, name: str, value: Any, timestamp_ns: int | None = None
+    ) -> MetricRecord:
         record = MetricRecord(timestamp_ns=timestamp_ns, name=name, value=value)
         self.metrics.append(record)
         return record

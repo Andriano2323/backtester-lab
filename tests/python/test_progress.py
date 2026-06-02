@@ -86,7 +86,13 @@ def test_last_timestamp_ns_is_updated():
 def test_orders_sent_count_is_updated():
     class SendingStrategy(Strategy):
         def on_book_update(self, update, ctx):
-            ctx.send_order(update.instrument_id, Side.BID, update.price, update.size, update.timestamp_ns)
+            ctx.send_order(
+                update.instrument_id,
+                Side.BID,
+                update.price,
+                update.size,
+                update.timestamp_ns,
+            )
 
     callbacks = []
 
@@ -103,7 +109,13 @@ def test_orders_sent_count_is_updated():
 def test_orders_cancelled_count_is_updated():
     class CancellingStrategy(Strategy):
         def on_book_update(self, update, ctx):
-            order_id = ctx.send_order(update.instrument_id, Side.BID, update.price, update.size, update.timestamp_ns)
+            order_id = ctx.send_order(
+                update.instrument_id,
+                Side.BID,
+                update.price,
+                update.size,
+                update.timestamp_ns,
+            )
             ctx.cancel_order(order_id, update.instrument_id, update.timestamp_ns)
 
     callbacks = []
@@ -121,7 +133,13 @@ def test_orders_cancelled_count_is_updated():
 def test_orders_filled_count_is_updated():
     class FillingStrategy(Strategy):
         def on_book_update(self, update, ctx):
-            ctx.send_order(update.instrument_id, Side.BID, update.price, update.size, update.timestamp_ns)
+            ctx.send_order(
+                update.instrument_id,
+                Side.BID,
+                update.price,
+                update.size,
+                update.timestamp_ns,
+            )
 
     callbacks = []
 
@@ -155,7 +173,13 @@ def test_orders_rejected_count_is_updated():
 def test_per_instrument_order_stats_contains_separate_stats_per_instrument():
     class MultiInstrumentStrategy(Strategy):
         def on_book_update(self, update, ctx):
-            ctx.send_order(update.instrument_id, Side.BID, update.price, update.size, update.timestamp_ns)
+            ctx.send_order(
+                update.instrument_id,
+                Side.BID,
+                update.price,
+                update.size,
+                update.timestamp_ns,
+            )
 
     callbacks = []
 

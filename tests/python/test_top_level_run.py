@@ -8,7 +8,12 @@ from backtester.risk import RiskLimits
 from backtester.types import BookUpdate, Side
 
 
-FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "python_feed" / "sample_feed.jsonl"
+FIXTURE = (
+    Path(__file__).resolve().parents[1]
+    / "fixtures"
+    / "python_feed"
+    / "sample_feed.jsonl"
+)
 
 
 def _book_update(timestamp_ns=1):
@@ -60,7 +65,13 @@ def test_kwargs_are_passed_to_backtest_runner():
 
     class SendingStrategy(Strategy):
         def on_book_update(self, update, ctx):
-            ctx.send_order(update.instrument_id, Side.BID, update.price, update.size, update.timestamp_ns)
+            ctx.send_order(
+                update.instrument_id,
+                Side.BID,
+                update.price,
+                update.size,
+                update.timestamp_ns,
+            )
 
     result = backtest.run(
         SendingStrategy(),
@@ -77,7 +88,9 @@ def test_kwargs_are_passed_to_backtest_runner():
 
 
 def test_invalid_strategy_type_raises_clear_type_error():
-    with pytest.raises(TypeError, match="strategy must be an instance of backtester.Strategy"):
+    with pytest.raises(
+        TypeError, match="strategy must be an instance of backtester.Strategy"
+    ):
         backtest.run(object(), events=[])
 
 

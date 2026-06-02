@@ -5,7 +5,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from .adapters import from_cpp_order_ack, from_cpp_order_fill, from_cpp_order_reject, python_to_cpp_side
+from .adapters import (
+    from_cpp_order_ack,
+    from_cpp_order_fill,
+    from_cpp_order_reject,
+    python_to_cpp_side,
+)
 from .types import InstrumentId, OrderId, Price, Quantity, Side, TimestampNs
 
 
@@ -39,7 +44,9 @@ class CppOrderGatewayFacade:
             )
         )
 
-    def cancel_order(self, order_id: OrderId, instrument_id: InstrumentId, timestamp_ns: TimestampNs) -> None:
+    def cancel_order(
+        self, order_id: OrderId, instrument_id: InstrumentId, timestamp_ns: TimestampNs
+    ) -> None:
         self._client.cancel_order(
             order_id=order_id,
             instrument_id=instrument_id,

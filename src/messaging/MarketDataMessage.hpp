@@ -79,17 +79,20 @@ using MarketDataMessage = std::variant<BookUpdate, BookSnapshot, Trade>;
 
 [[nodiscard]] inline InstrumentId instrumentId(const MarketDataMessage& message)
 {
-    return std::visit([](const auto& payload) { return payload.instrument_id; }, message);
+    return std::visit([](const auto& payload)
+                      { return payload.instrument_id; }, message);
 }
 
 [[nodiscard]] inline TimestampNs timestampNs(const MarketDataMessage& message)
 {
-    return std::visit([](const auto& payload) { return payload.timestamp_ns; }, message);
+    return std::visit([](const auto& payload)
+                      { return payload.timestamp_ns; }, message);
 }
 
 [[nodiscard]] inline SeqNo seqNo(const MarketDataMessage& message)
 {
-    return std::visit([](const auto& payload) { return payload.seq_no; }, message);
+    return std::visit([](const auto& payload)
+                      { return payload.seq_no; }, message);
 }
 
 inline void setSeqNo(MarketDataMessage& message, SeqNo seq_no)

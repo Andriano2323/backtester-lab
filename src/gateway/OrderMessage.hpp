@@ -120,12 +120,14 @@ using OrderEvent = std::variant<OrderAck, OrderFill, OrderReject>;
 
 [[nodiscard]] inline OrderMessageType messageType(const OrderRequest& request)
 {
-    return std::visit([](const auto& message) { return messageType(message); }, request);
+    return std::visit([](const auto& message)
+                      { return messageType(message); }, request);
 }
 
 [[nodiscard]] inline OrderMessageType messageType(const OrderEvent& event)
 {
-    return std::visit([](const auto& message) { return messageType(message); }, event);
+    return std::visit([](const auto& message)
+                      { return messageType(message); }, event);
 }
 
 [[nodiscard]] inline OrderFields& fields(NewOrder& message) noexcept
@@ -190,22 +192,26 @@ using OrderEvent = std::variant<OrderAck, OrderFill, OrderReject>;
 
 [[nodiscard]] inline OrderFields& fields(OrderRequest& request)
 {
-    return std::visit([](auto& message) -> OrderFields& { return fields(message); }, request);
+    return std::visit([](auto& message) -> OrderFields&
+                      { return fields(message); }, request);
 }
 
 [[nodiscard]] inline const OrderFields& fields(const OrderRequest& request)
 {
-    return std::visit([](const auto& message) -> const OrderFields& { return fields(message); }, request);
+    return std::visit([](const auto& message) -> const OrderFields&
+                      { return fields(message); }, request);
 }
 
 [[nodiscard]] inline OrderFields& fields(OrderEvent& event)
 {
-    return std::visit([](auto& message) -> OrderFields& { return fields(message); }, event);
+    return std::visit([](auto& message) -> OrderFields&
+                      { return fields(message); }, event);
 }
 
 [[nodiscard]] inline const OrderFields& fields(const OrderEvent& event)
 {
-    return std::visit([](const auto& message) -> const OrderFields& { return fields(message); }, event);
+    return std::visit([](const auto& message) -> const OrderFields&
+                      { return fields(message); }, event);
 }
 
 template <typename Message>

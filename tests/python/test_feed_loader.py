@@ -6,7 +6,12 @@ from backtester.feed_loader import load_events
 from backtester.types import BookSnapshot, BookUpdate, Side, Trade
 
 
-FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "python_feed" / "sample_feed.jsonl"
+FIXTURE = (
+    Path(__file__).resolve().parents[1]
+    / "fixtures"
+    / "python_feed"
+    / "sample_feed.jsonl"
+)
 
 
 def test_loads_book_update_jsonl_record(tmp_path):

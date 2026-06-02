@@ -12,9 +12,9 @@ PYTHON_DIR = REPO_ROOT / "python"
 if str(PYTHON_DIR) not in sys.path:
     sys.path.insert(0, str(PYTHON_DIR))
 
-import backtester as backtest
-from backtester import Strategy
-from backtester.types import BookUpdate, PRICE_SCALE, Side
+import backtester as backtest  # noqa: E402
+from backtester import Strategy  # noqa: E402
+from backtester.types import BookUpdate, PRICE_SCALE, Side  # noqa: E402
 
 
 class NoOpStrategy(Strategy):
@@ -44,7 +44,12 @@ def run_benchmark(event_count: int) -> tuple[int, float, float]:
     events = make_events(event_count)
 
     started = perf_counter()
-    backtest.run(strategy, events=events, progress_interval_seconds=None, progress_interval_events=None)
+    backtest.run(
+        strategy,
+        events=events,
+        progress_interval_seconds=None,
+        progress_interval_events=None,
+    )
     elapsed = perf_counter() - started
 
     callbacks_per_second = strategy.callbacks / elapsed if elapsed > 0 else 0.0
@@ -52,8 +57,15 @@ def run_benchmark(event_count: int) -> tuple[int, float, float]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Measure Python Strategy callback overhead.")
-    parser.add_argument("--events", type=int, default=100_000, help="Number of synthetic BookUpdate events.")
+    parser = argparse.ArgumentParser(
+        description="Measure Python Strategy callback overhead."
+    )
+    parser.add_argument(
+        "--events",
+        type=int,
+        default=100_000,
+        help="Number of synthetic BookUpdate events.",
+    )
     return parser.parse_args()
 
 

@@ -4,11 +4,18 @@ from pathlib import Path
 from backtester import BacktestResult
 
 
-EXAMPLE_PATH = Path(__file__).resolve().parents[2] / "examples" / "python" / "mean_reversion_strategy.py"
+EXAMPLE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "examples"
+    / "python"
+    / "mean_reversion_strategy.py"
+)
 
 
 def _load_example_module():
-    spec = importlib.util.spec_from_file_location("mean_reversion_strategy_example", EXAMPLE_PATH)
+    spec = importlib.util.spec_from_file_location(
+        "mean_reversion_strategy_example", EXAMPLE_PATH
+    )
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
@@ -66,6 +73,8 @@ def test_example_is_deterministic_across_repeated_runs():
     first = module.run_example()
     second = module.run_example()
 
-    assert first.order_log_df.to_dict("records") == second.order_log_df.to_dict("records")
+    assert first.order_log_df.to_dict("records") == second.order_log_df.to_dict(
+        "records"
+    )
     assert first.fills_df.to_dict("records") == second.fills_df.to_dict("records")
     assert first.pnl_series.to_dict() == second.pnl_series.to_dict()

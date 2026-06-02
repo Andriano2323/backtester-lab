@@ -136,9 +136,23 @@ def test_order_statistics_counts_sent_cancelled_filled_and_rejected():
     result.add_order_log(1, 1, 101, 10, "B", 100, 10, "Accepted", "new_order")
     result.add_order_log(2, 1, 101, 10, "B", 100, 10, "Cancelled", "cancel_order")
     result.add_order_log(3, 1, 102, 10, "B", 100, 10, "Filled", "fill")
-    result.add_order_log(4, 1, 103, 10, "B", 100, 10, "Rejected", "reject", "InvalidPrice", "invalid price")
+    result.add_order_log(
+        4,
+        1,
+        103,
+        10,
+        "B",
+        100,
+        10,
+        "Rejected",
+        "reject",
+        "InvalidPrice",
+        "invalid price",
+    )
 
-    assert result.order_statistics == OrderStatistics(sent=1, cancelled=1, filled=1, rejected=1)
+    assert result.order_statistics == OrderStatistics(
+        sent=1, cancelled=1, filled=1, rejected=1
+    )
 
 
 def test_dataframe_column_order_is_stable():

@@ -68,7 +68,9 @@ def test_allow_short_false_rejects_sell_that_would_create_short_position():
 
 
 def test_accepted_order_passes_to_gateway():
-    ctx = _context(RiskLimits(max_order_size=5, max_position_per_instrument=10, allow_short=False))
+    ctx = _context(
+        RiskLimits(max_order_size=5, max_position_per_instrument=10, allow_short=False)
+    )
 
     order_id = ctx.send_order(10, Side.BID, 100, 5, 1)
 
@@ -104,7 +106,9 @@ def test_rejected_risk_order_appears_in_order_log_df():
 def test_strategy_context_send_order_raises_documented_exception_on_risk_reject():
     ctx = _context(RiskLimits(max_order_size=1))
 
-    with pytest.raises(RiskLimitExceeded, match="order size exceeds max_order_size") as exc:
+    with pytest.raises(
+        RiskLimitExceeded, match="order size exceeds max_order_size"
+    ) as exc:
         ctx.send_order(10, Side.BID, 100, 2, 1)
 
     assert exc.value.reason is RiskRejectReason.MAX_ORDER_SIZE

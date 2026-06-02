@@ -78,7 +78,10 @@ class Portfolio:
     def unrealized_pnl(self, instrument_id: int | None = None) -> int:
         if instrument_id is not None:
             return self._unrealized_for_instrument(instrument_id)
-        return sum(self._unrealized_for_instrument(instrument_id) for instrument_id in self.positions)
+        return sum(
+            self._unrealized_for_instrument(instrument_id)
+            for instrument_id in self.positions
+        )
 
     def mark_to_market_pnl(self) -> int:
         return int(self.realized_pnl + self.unrealized_pnl())
@@ -88,7 +91,11 @@ class Portfolio:
 
     def _unrealized_for_instrument(self, instrument_id: int) -> int:
         position = self.position(instrument_id)
-        if position == 0 or instrument_id not in self.last_price or instrument_id not in self._average_price:
+        if (
+            position == 0
+            or instrument_id not in self.last_price
+            or instrument_id not in self._average_price
+        ):
             return 0
 
         last = self.last_price[instrument_id]
@@ -97,7 +104,9 @@ class Portfolio:
             return (last - average) * position
         return (average - last) * abs(position)
 
-    def _set_open_position(self, instrument_id: int, position: int, average_price: int) -> None:
+    def _set_open_position(
+        self, instrument_id: int, position: int, average_price: int
+    ) -> None:
         self.positions[instrument_id] = int(position)
         if position == 0:
             self._average_price.pop(instrument_id, None)

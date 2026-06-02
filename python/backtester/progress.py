@@ -25,7 +25,11 @@ class ProgressMetrics:
 
     def __post_init__(self) -> None:
         if self.progress_percent is None and self.total_events is not None:
-            object.__setattr__(self, "progress_percent", _progress_percent(self.processed_events, self.total_events))
+            object.__setattr__(
+                self,
+                "progress_percent",
+                _progress_percent(self.processed_events, self.total_events),
+            )
 
     @property
     def progress_fraction(self) -> float | None:

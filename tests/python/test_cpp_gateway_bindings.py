@@ -18,8 +18,12 @@ def _book_update(instrument_id=10, timestamp_ns=1, price=101_250_000_000, size=5
 
 
 def _new_gateway(trading_engine_id=1, batch_size=1):
-    channel = cpp.OrderChannel(request_batch_size=batch_size, event_batch_size=batch_size)
-    client = cpp.OrderGatewayClient(trading_engine_id=trading_engine_id, channel=channel)
+    channel = cpp.OrderChannel(
+        request_batch_size=batch_size, event_batch_size=batch_size
+    )
+    client = cpp.OrderGatewayClient(
+        trading_engine_id=trading_engine_id, channel=channel
+    )
     server = cpp.OrderGatewayServer()
     server.register_engine(trading_engine_id, channel)
     return channel, client, server
@@ -35,7 +39,9 @@ def test_python_can_subscribe_to_instrument_with_callback():
     publisher = cpp.MarketDataPublisher()
     received = []
 
-    subscription = publisher.subscribe(10, lambda message: received.append(message), batch_size=1)
+    subscription = publisher.subscribe(
+        10, lambda message: received.append(message), batch_size=1
+    )
 
     assert subscription.subscriber_id == 1
     assert subscription.instrument_id == 10
@@ -47,7 +53,9 @@ def test_python_can_subscribe_to_instrument_with_callback():
 def test_publish_update_flush_and_subscriber_drain_invokes_callback_once():
     publisher = cpp.MarketDataPublisher()
     received = []
-    subscription = publisher.subscribe(10, lambda message: received.append(message), batch_size=8)
+    subscription = publisher.subscribe(
+        10, lambda message: received.append(message), batch_size=8
+    )
 
     assigned_seq_no = publisher.publish_update(_book_update(instrument_id=10))
     publisher.flush()
@@ -63,7 +71,9 @@ def test_publish_update_flush_and_subscriber_drain_invokes_callback_once():
 def test_subscriber_for_one_instrument_does_not_receive_other_instrument_update():
     publisher = cpp.MarketDataPublisher()
     received = []
-    subscription = publisher.subscribe(1, lambda message: received.append(message), batch_size=1)
+    subscription = publisher.subscribe(
+        1, lambda message: received.append(message), batch_size=1
+    )
 
     publisher.publish_update(_book_update(instrument_id=2))
     publisher.flush()

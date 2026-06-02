@@ -44,7 +44,12 @@ class _SyntheticOrder:
 class _SyntheticOrderGatewayFacade:
     """Tiny in-memory order gateway used by BacktestRunner synthetic mode."""
 
-    def __init__(self, result: BacktestResult, trading_engine_id: int = 1, fill_at_touch: bool = False) -> None:
+    def __init__(
+        self,
+        result: BacktestResult,
+        trading_engine_id: int = 1,
+        fill_at_touch: bool = False,
+    ) -> None:
         self._result = result
         self._trading_engine_id = trading_engine_id
         self._fill_at_touch = fill_at_touch
@@ -55,7 +60,9 @@ class _SyntheticOrderGatewayFacade:
         self._on_fill = None
         self._on_reject = None
 
-    def send_order(self, instrument_id: int, side: Side, price: int, size: int, timestamp_ns: int) -> int:
+    def send_order(
+        self, instrument_id: int, side: Side, price: int, size: int, timestamp_ns: int
+    ) -> int:
         order_id = self._next_order_id
         self._next_order_id += 1
         side = _python_side(side)
@@ -116,9 +123,15 @@ class _SyntheticOrderGatewayFacade:
             self.emit_fill(order_id, price, size, timestamp_ns)
         return order_id
 
-    def cancel_order(self, order_id: int, instrument_id: int, timestamp_ns: int) -> None:
+    def cancel_order(
+        self, order_id: int, instrument_id: int, timestamp_ns: int
+    ) -> None:
         order = self._orders.get(order_id)
-        if order is None or order.status in {OrderStatus.CANCELLED, OrderStatus.FILLED, OrderStatus.REJECTED}:
+        if order is None or order.status in {
+            OrderStatus.CANCELLED,
+            OrderStatus.FILLED,
+            OrderStatus.REJECTED,
+        }:
             self._events.append(
                 OrderReject(
                     self._trading_engine_id,
@@ -150,10 +163,22 @@ class _SyntheticOrderGatewayFacade:
             )
         )
 
-    def modify_order(self, order_id: int, instrument_id: int, side: Side, price: int, size: int, timestamp_ns: int) -> None:
+    def modify_order(
+        self,
+        order_id: int,
+        instrument_id: int,
+        side: Side,
+        price: int,
+        size: int,
+        timestamp_ns: int,
+    ) -> None:
         order = self._orders.get(order_id)
         side = _python_side(side)
-        if order is None or order.status in {OrderStatus.CANCELLED, OrderStatus.FILLED, OrderStatus.REJECTED}:
+        if order is None or order.status in {
+            OrderStatus.CANCELLED,
+            OrderStatus.FILLED,
+            OrderStatus.REJECTED,
+        }:
             self._events.append(
                 OrderReject(
                     self._trading_engine_id,
@@ -235,14 +260,25 @@ class _SyntheticOrderGatewayFacade:
     def on_reject(self, callback) -> None:
         self._on_reject = callback
 
-    def emit_fill(self, order_id: int, fill_price: int, fill_size: int, timestamp_ns: int) -> bool:
+    def emit_fill(
+        self, order_id: int, fill_price: int, fill_size: int, timestamp_ns: int
+    ) -> bool:
         order = self._orders.get(order_id)
-        if order is None or fill_size <= 0 or order.status in {OrderStatus.CANCELLED, OrderStatus.FILLED, OrderStatus.REJECTED}:
+        if (
+            order is None
+            or fill_size <= 0
+            or order.status
+            in {OrderStatus.CANCELLED, OrderStatus.FILLED, OrderStatus.REJECTED}
+        ):
             return False
 
         actual_fill_size = min(fill_size, order.remaining_size)
         order.remaining_size -= actual_fill_size
-        order.status = OrderStatus.FILLED if order.remaining_size == 0 else OrderStatus.PARTIALLY_FILLED
+        order.status = (
+            OrderStatus.FILLED
+            if order.remaining_size == 0
+            else OrderStatus.PARTIALLY_FILLED
+        )
         self._events.append(
             OrderFill(
                 self._trading_engine_id,
@@ -261,11 +297,17 @@ class _SyntheticOrderGatewayFacade:
         return True
 
     @staticmethod
-    def _validate_new_order(instrument_id: int, side: Side, price: int, size: int) -> OrderRejectReason | None:
-        return _SyntheticOrderGatewayFacade._validate_active_order(instrument_id, side, price, size)
+    def _validate_new_order(
+        instrument_id: int, side: Side, price: int, size: int
+    ) -> OrderRejectReason | None:
+        return _SyntheticOrderGatewayFacade._validate_active_order(
+            instrument_id, side, price, size
+        )
 
     @staticmethod
-    def _validate_active_order(instrument_id: int, side: Side, price: int, size: int) -> OrderRejectReason | None:
+    def _validate_active_order(
+        instrument_id: int, side: Side, price: int, size: int
+    ) -> OrderRejectReason | None:
         if instrument_id == 0:
             return OrderRejectReason.INVALID_INSTRUMENT
         if side is Side.NONE:
@@ -351,7 +393,9 @@ class BacktestRunner:
         gateway = _SyntheticOrderGatewayFacade(
             result,
             trading_engine_id=self.trading_engine_id,
-            fill_at_touch=self._config_bool("fill_at_touch") or self._config_bool("auto_fill") or self.fill_at_touch,
+            fill_at_touch=self._config_bool("fill_at_touch")
+            or self._config_bool("auto_fill")
+            or self.fill_at_touch,
         )
         ctx = context or StrategyContext(metadata={"config": self.config})
         ctx.gateway = gateway
@@ -410,15 +454,21 @@ class BacktestRunner:
         if last_progress_processed != total_events:
             emit_progress(total_events)
         for metric in ctx.metrics:
-            result.add_metric(metric["name"], metric["value"], timestamp_ns=metric.get("timestamp_ns"))
+            result.add_metric(
+                metric["name"], metric["value"], timestamp_ns=metric.get("timestamp_ns")
+            )
         strategy.on_finish(result, ctx)
         return result
 
     def _config_bool(self, name: str) -> bool:
         return bool(self.config.get(name, False))
 
-    def _risk_limits(self, override: RiskLimits | dict[str, Any] | None = None) -> RiskLimits | None:
-        configured = override if override is not None else self.config.get("risk_limits")
+    def _risk_limits(
+        self, override: RiskLimits | dict[str, Any] | None = None
+    ) -> RiskLimits | None:
+        configured = (
+            override if override is not None else self.config.get("risk_limits")
+        )
         if isinstance(configured, RiskLimits):
             return configured
         if isinstance(configured, dict):
@@ -474,7 +524,11 @@ class BacktestRunner:
         return False
 
     @staticmethod
-    def _dispatch_market_event(strategy: Strategy, event: BookUpdate | BookSnapshot | Trade, ctx: StrategyContext) -> None:
+    def _dispatch_market_event(
+        strategy: Strategy,
+        event: BookUpdate | BookSnapshot | Trade,
+        ctx: StrategyContext,
+    ) -> None:
         if isinstance(event, BookUpdate):
             strategy.on_book_update(event, ctx)
         elif isinstance(event, BookSnapshot):
@@ -499,7 +553,12 @@ def _reject_text(reason: OrderRejectReason) -> str:
     return reason.value
 
 
-def run(strategy: Strategy, data_path: Any | None = None, date_range: Any | None = None, **kwargs: Any) -> BacktestResult:
+def run(
+    strategy: Strategy,
+    data_path: Any | None = None,
+    date_range: Any | None = None,
+    **kwargs: Any,
+) -> BacktestResult:
     """Convenience API matching ``backtester.run(strategy, data_path, date_range)``."""
 
     runner_kwargs: dict[str, Any] = {}

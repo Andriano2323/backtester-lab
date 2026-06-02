@@ -8,7 +8,15 @@ from typing import Any, Mapping
 from .portfolio import Portfolio
 from .result import BacktestResult
 from .risk import RiskLimitExceeded, RiskLimits, check_order, risk_reject_text
-from .types import InstrumentId, OrderId, OrderStatus, Price, Quantity, Side, TimestampNs
+from .types import (
+    InstrumentId,
+    OrderId,
+    OrderStatus,
+    Price,
+    Quantity,
+    Side,
+    TimestampNs,
+)
 
 
 @dataclass
@@ -36,14 +44,26 @@ class StrategyContext:
         if self.gateway is None:
             raise RuntimeError("StrategyContext has no gateway")
         side = self._python_side(side)
-        reject_reason = check_order(self.risk_limits, self.portfolio, instrument_id, side, size)
+        reject_reason = check_order(
+            self.risk_limits, self.portfolio, instrument_id, side, size
+        )
         if reject_reason is not None:
             text = risk_reject_text(reject_reason)
-            self._record_risk_reject(instrument_id, side, price, size, timestamp_ns, reject_reason.value, text)
+            self._record_risk_reject(
+                instrument_id,
+                side,
+                price,
+                size,
+                timestamp_ns,
+                reject_reason.value,
+                text,
+            )
             raise RiskLimitExceeded(reject_reason, text)
         return self.gateway.send_order(instrument_id, side, price, size, timestamp_ns)
 
-    def cancel_order(self, order_id: OrderId, instrument_id: InstrumentId, timestamp_ns: TimestampNs) -> None:
+    def cancel_order(
+        self, order_id: OrderId, instrument_id: InstrumentId, timestamp_ns: TimestampNs
+    ) -> None:
         if self.gateway is None:
             raise RuntimeError("StrategyContext has no gateway")
         self.gateway.cancel_order(order_id, instrument_id, timestamp_ns)
@@ -59,7 +79,9 @@ class StrategyContext:
     ) -> None:
         if self.gateway is None:
             raise RuntimeError("StrategyContext has no gateway")
-        self.gateway.modify_order(order_id, instrument_id, side, price, size, timestamp_ns)
+        self.gateway.modify_order(
+            order_id, instrument_id, side, price, size, timestamp_ns
+        )
 
     def current_position(self, instrument_id: InstrumentId) -> int:
         if self.portfolio is not None:
@@ -87,7 +109,9 @@ class StrategyContext:
 
         return int(self.pnl)
 
-    def record_metric(self, name: str, value: Any, timestamp_ns: TimestampNs | None = None) -> None:
+    def record_metric(
+        self, name: str, value: Any, timestamp_ns: TimestampNs | None = None
+    ) -> None:
         self.metrics.append(
             {
                 "name": name,

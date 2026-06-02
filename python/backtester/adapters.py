@@ -85,7 +85,9 @@ def from_cpp_price_level(level: Any) -> PriceLevel:
 
 def to_cpp_price_level(level: PriceLevel):
     cpp = require_cpp()
-    return cpp.PriceLevel(level_index=level.level_index, price=level.price, size=level.size)
+    return cpp.PriceLevel(
+        level_index=level.level_index, price=level.price, size=level.size
+    )
 
 
 def from_cpp_book_update(update: Any) -> BookUpdate:

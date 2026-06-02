@@ -12,7 +12,9 @@ MarketDataEvent = BookUpdate | BookSnapshot | Trade
 DateRange = tuple[int | str | None, int | str | None] | None
 
 
-def load_events(data_path: str | Path, date_range: DateRange = None) -> list[MarketDataEvent]:
+def load_events(
+    data_path: str | Path, date_range: DateRange = None
+) -> list[MarketDataEvent]:
     """Load synthetic market-data events from a JSONL file or directory."""
 
     path = Path(data_path)
@@ -28,7 +30,8 @@ def load_events(data_path: str | Path, date_range: DateRange = None) -> list[Mar
     filtered = [
         event
         for event in events
-        if (start_ns is None or event.timestamp_ns >= start_ns) and (end_ns is None or event.timestamp_ns < end_ns)
+        if (start_ns is None or event.timestamp_ns >= start_ns)
+        and (end_ns is None or event.timestamp_ns < end_ns)
     ]
     return sorted(filtered, key=lambda event: event.timestamp_ns)
 
@@ -37,8 +40,14 @@ def _jsonl_files(path: Path) -> list[Path]:
     if path.is_file():
         return [path]
     if path.is_dir():
-        return sorted(file_path for file_path in path.iterdir() if file_path.is_file() and file_path.suffix == ".jsonl")
-    raise FileNotFoundError(f"Market-data path is neither a file nor a directory: {path}")
+        return sorted(
+            file_path
+            for file_path in path.iterdir()
+            if file_path.is_file() and file_path.suffix == ".jsonl"
+        )
+    raise FileNotFoundError(
+        f"Market-data path is neither a file nor a directory: {path}"
+    )
 
 
 def _load_jsonl_file(path: Path) -> list[MarketDataEvent]:
@@ -52,9 +61,13 @@ def _load_jsonl_file(path: Path) -> list[MarketDataEvent]:
                 record = json.loads(stripped)
                 events.append(_event_from_record(record))
             except json.JSONDecodeError as exc:
-                raise ValueError(f"Invalid JSON in {path}:{line_number}: {exc.msg}") from exc
+                raise ValueError(
+                    f"Invalid JSON in {path}:{line_number}: {exc.msg}"
+                ) from exc
             except (KeyError, TypeError, ValueError) as exc:
-                raise ValueError(f"Invalid market-data record in {path}:{line_number}: {exc}") from exc
+                raise ValueError(
+                    f"Invalid market-data record in {path}:{line_number}: {exc}"
+                ) from exc
     return events
 
 
@@ -137,7 +150,9 @@ def _parse_bound(value: int | str | None, name: str) -> int | None:
         try:
             return int(stripped)
         except ValueError as exc:
-            raise ValueError(f"date_range {name} must be an integer nanosecond timestamp") from exc
+            raise ValueError(
+                f"date_range {name} must be an integer nanosecond timestamp"
+            ) from exc
     raise ValueError(f"date_range {name} must be an integer nanosecond timestamp")
 
 

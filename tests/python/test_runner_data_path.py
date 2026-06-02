@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from backtester import BacktestRunner, Strategy
-from backtester.types import BookSnapshot, BookUpdate, Side, Trade
+from backtester.types import BookUpdate, Side, Trade
 
 
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "python_feed"
@@ -92,7 +92,9 @@ def test_passing_events_and_data_path_uses_events():
         ),
     ]
 
-    BacktestRunner().run(strategy, data_path=FIXTURE_FILE, date_range=(100, 101), events=events)
+    BacktestRunner().run(
+        strategy, data_path=FIXTURE_FILE, date_range=(100, 101), events=events
+    )
 
     assert strategy.seen == [
         ("book_update", 800),

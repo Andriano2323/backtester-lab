@@ -95,7 +95,17 @@ def test_cpp_order_ack_converts_to_python_order_ack():
 
     ack = from_cpp_order_ack(cpp_ack)
 
-    assert ack == OrderAck(1, 100, 10, Side.BID, 101_250_000_000, 5, 1_003, OrderStatus.ACCEPTED, OrderAckType.NEW_ACCEPTED)
+    assert ack == OrderAck(
+        1,
+        100,
+        10,
+        Side.BID,
+        101_250_000_000,
+        5,
+        1_003,
+        OrderStatus.ACCEPTED,
+        OrderAckType.NEW_ACCEPTED,
+    )
 
 
 def test_cpp_order_fill_converts_to_python_order_fill():

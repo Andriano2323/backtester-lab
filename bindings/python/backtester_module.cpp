@@ -30,36 +30,52 @@ void bindOrderFields(py::class_<Message>& cls)
 {
     cls.def_property(
            "trading_engine_id",
-           [](const Message& message) { return message.fields.trading_engine_id; },
-           [](Message& message, md::TradingEngineId value) { message.fields.trading_engine_id = value; })
+           [](const Message& message)
+           { return message.fields.trading_engine_id; },
+           [](Message& message, md::TradingEngineId value)
+           { message.fields.trading_engine_id = value; })
         .def_property(
             "order_id",
-            [](const Message& message) { return message.fields.order_id; },
-            [](Message& message, md::OrderId value) { message.fields.order_id = value; })
+            [](const Message& message)
+            { return message.fields.order_id; },
+            [](Message& message, md::OrderId value)
+            { message.fields.order_id = value; })
         .def_property(
             "instrument_id",
-            [](const Message& message) { return message.fields.instrument_id; },
-            [](Message& message, md::InstrumentId value) { message.fields.instrument_id = value; })
+            [](const Message& message)
+            { return message.fields.instrument_id; },
+            [](Message& message, md::InstrumentId value)
+            { message.fields.instrument_id = value; })
         .def_property(
             "side",
-            [](const Message& message) { return message.fields.side; },
-            [](Message& message, md::Side value) { message.fields.side = value; })
+            [](const Message& message)
+            { return message.fields.side; },
+            [](Message& message, md::Side value)
+            { message.fields.side = value; })
         .def_property(
             "price",
-            [](const Message& message) { return message.fields.price; },
-            [](Message& message, md::Price value) { message.fields.price = value; })
+            [](const Message& message)
+            { return message.fields.price; },
+            [](Message& message, md::Price value)
+            { message.fields.price = value; })
         .def_property(
             "size",
-            [](const Message& message) { return message.fields.size; },
-            [](Message& message, md::Quantity value) { message.fields.size = value; })
+            [](const Message& message)
+            { return message.fields.size; },
+            [](Message& message, md::Quantity value)
+            { message.fields.size = value; })
         .def_property(
             "timestamp_ns",
-            [](const Message& message) { return message.fields.timestamp_ns; },
-            [](Message& message, md::TimestampNs value) { message.fields.timestamp_ns = value; })
+            [](const Message& message)
+            { return message.fields.timestamp_ns; },
+            [](Message& message, md::TimestampNs value)
+            { message.fields.timestamp_ns = value; })
         .def_property(
             "status",
-            [](const Message& message) { return message.fields.status; },
-            [](Message& message, md::OrderStatus value) { message.fields.status = value; });
+            [](const Message& message)
+            { return message.fields.status; },
+            [](Message& message, md::OrderStatus value)
+            { message.fields.status = value; });
 }
 
 md::OrderFields makeOrderFields(
@@ -102,7 +118,8 @@ PYBIND11_MODULE(_backtester_cpp, module)
 {
     module.doc() = "C++ extension module for the backtester Strategy API";
 
-    module.def("version", [] { return BACKTESTER_VERSION; });
+    module.def("version", []
+               { return BACKTESTER_VERSION; });
     module.attr("PRICE_SCALE") = py::int_(md::price_scale);
     module.attr("UNDEFINED_PRICE") = py::int_(md::undefined_price);
 

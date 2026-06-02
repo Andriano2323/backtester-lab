@@ -30,7 +30,9 @@ def plot_fills_on_price(result: BacktestResult, price_series: Any):
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots()
-    prices = price_series if isinstance(price_series, pd.Series) else pd.Series(price_series)
+    prices = (
+        price_series if isinstance(price_series, pd.Series) else pd.Series(price_series)
+    )
     if not prices.empty:
         ax.plot(prices.index, prices.values, label="price")
 
@@ -39,9 +41,16 @@ def plot_fills_on_price(result: BacktestResult, price_series: Any):
         buys = fills[fills["side"].isin(["B", "Bid", "BID"])]
         sells = fills[fills["side"].isin(["A", "Ask", "ASK"])]
         if not buys.empty:
-            ax.scatter(buys["timestamp_ns"], buys["fill_price"], marker="^", label="buy fills")
+            ax.scatter(
+                buys["timestamp_ns"], buys["fill_price"], marker="^", label="buy fills"
+            )
         if not sells.empty:
-            ax.scatter(sells["timestamp_ns"], sells["fill_price"], marker="v", label="sell fills")
+            ax.scatter(
+                sells["timestamp_ns"],
+                sells["fill_price"],
+                marker="v",
+                label="sell fills",
+            )
 
     ax.set_title("Fills On Price")
     ax.set_xlabel("timestamp_ns")

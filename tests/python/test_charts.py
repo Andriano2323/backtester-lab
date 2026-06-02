@@ -69,7 +69,9 @@ def test_chart_functions_do_not_call_show(monkeypatch):
     monkeypatch.setattr(plt, "show", fake_show)
 
     fig1 = plot_cumulative_pnl(_result_with_pnl_and_fill())
-    fig2 = plot_fills_on_price(_result_with_pnl_and_fill(), pd.Series([1, 2], index=[1, 2]))
+    fig2 = plot_fills_on_price(
+        _result_with_pnl_and_fill(), pd.Series([1, 2], index=[1, 2])
+    )
 
     assert called is False
     plt.close(fig1)

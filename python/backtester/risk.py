@@ -50,7 +50,10 @@ def check_order(
 
     if not limits.allow_short and projected_position < 0:
         return RiskRejectReason.SHORT_NOT_ALLOWED
-    if limits.max_position_per_instrument is not None and abs(projected_position) > limits.max_position_per_instrument:
+    if (
+        limits.max_position_per_instrument is not None
+        and abs(projected_position) > limits.max_position_per_instrument
+    ):
         return RiskRejectReason.MAX_POSITION_PER_INSTRUMENT
 
     return None
@@ -74,4 +77,10 @@ def _signed_quantity(side: Side, size: int) -> int:
     return 0
 
 
-__all__ = ["RiskLimitExceeded", "RiskLimits", "RiskRejectReason", "check_order", "risk_reject_text"]
+__all__ = [
+    "RiskLimitExceeded",
+    "RiskLimits",
+    "RiskRejectReason",
+    "check_order",
+    "risk_reject_text",
+]
