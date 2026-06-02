@@ -6,7 +6,8 @@ authors = [
     {name = "CMF Team", email = "cmfteam2018@gmail.com"},
 ]
 dependencies = [
-    "pandas>=2.2.0"
+    "pandas>=2.2.0",
+    "matplotlib>=3.8.0"
 ]
 
 requires-python = "==3.12.*"
@@ -17,7 +18,16 @@ license = {text = "MIT"}
 [tool.pdm]
 distribution = false
 
+[tool.pytest.ini_options]
+testpaths = [
+    "tests/python",
+]
+pythonpath = [
+    "python",
+]
+
 [dependency-groups]
 dev = [
     "pre-commit>=4.5.1",
+    "pybind11>=3.0.0",
 ]

@@ -34,6 +34,11 @@ The M2 / Group 1 order and trade protocol is documented in
 schema, `OrderGatewayClient`, `OrderGatewayServer`, validation rules, fill notifications, and the
 order gateway latency benchmark.
 
+The M3 / Group 4 Python Strategy API is documented in
+[`docs/python_strategy_api.md`](docs/python_strategy_api.md). It covers strategy callbacks,
+`backtester.run(...)`, result DataFrames, progress metrics, risk limits, chart helpers, examples,
+and the current synthetic JSONL feed limitations.
+
 ## Manual build
 
 ```bash

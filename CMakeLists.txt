@@ -10,6 +10,7 @@ find_package(Threads REQUIRED)
 
 option(ENABLE_COVERAGE "Build with gcov coverage instrumentation" OFF)
 option(ENABLE_ARROW "Build optional Arrow/Feather input support" OFF)
+option(BACKTESTER_BUILD_PYTHON "Build optional pybind11 Python extension" ON)
 
 set(INGEST_SOURCES
     src/app/ArgsParser.cpp
@@ -122,6 +123,45 @@ if (ENABLE_ARROW)
     target_link_libraries(ingest_core PUBLIC ${ARROW_TARGET})
 endif()
 
+if (BACKTESTER_BUILD_PYTHON)
+    if (NOT Python3_EXECUTABLE AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.venv/bin/python")
+        set(Python3_EXECUTABLE "${CMAKE_CURRENT_SOURCE_DIR}/.venv/bin/python" CACHE FILEPATH "Python interpreter")
+    endif()
+
+    find_package(Python3 COMPONENTS Interpreter Development.Module REQUIRED)
+    find_package(pybind11 CONFIG QUIET)
+    if (NOT pybind11_FOUND)
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} -c "import pybind11; print(pybind11.get_cmake_dir())"
+            OUTPUT_VARIABLE PYBIND11_CMAKE_DIR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE PYBIND11_CMAKE_DIR_RESULT
+        )
+        if (NOT PYBIND11_CMAKE_DIR_RESULT EQUAL 0 OR NOT EXISTS "${PYBIND11_CMAKE_DIR}")
+            message(FATAL_ERROR "BACKTESTER_BUILD_PYTHON=ON requires pybind11. Install it in the selected Python environment or set pybind11_DIR.")
+        endif()
+
+        set(pybind11_DIR "${PYBIND11_CMAKE_DIR}" CACHE PATH "pybind11 CMake package directory" FORCE)
+        find_package(pybind11 CONFIG REQUIRED)
+    endif()
+
+    set_target_properties(ingest_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+    pybind11_add_module(_backtester_cpp MODULE bindings/python/backtester_module.cpp)
+    target_link_libraries(_backtester_cpp PRIVATE ingest_core)
+    target_compile_definitions(_backtester_cpp PRIVATE BACKTESTER_VERSION="0.0.0")
+    set_target_properties(_backtester_cpp PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python/backtester"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python/backtester"
+    )
+    add_custom_command(TARGET _backtester_cpp POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/python"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:_backtester_cpp>"
+            "${CMAKE_BINARY_DIR}/python/$<TARGET_FILE_NAME:_backtester_cpp>"
+    )
+endif()
+
 add_executable(ingest src/main.cpp)
 target_link_libraries(ingest PRIVATE ingest_core)
 if (ENABLE_ARROW AND DEFINED ARROW_RUNTIME_DIR)
@@ -145,6 +185,9 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(ingest PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(market_data_feed_benchmark PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(order_gateway_latency_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+    if (BACKTESTER_BUILD_PYTHON)
+        target_compile_options(_backtester_cpp PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
     set_source_files_properties(third_party/simdjson/simdjson.cpp PROPERTIES
         COMPILE_FLAGS "-Wno-error -w")
 
@@ -153,10 +196,16 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(ingest PRIVATE -O0 -g --coverage)
         target_compile_options(market_data_feed_benchmark PRIVATE -O0 -g --coverage)
         target_compile_options(order_gateway_latency_benchmark PRIVATE -O0 -g --coverage)
+        if (BACKTESTER_BUILD_PYTHON)
+            target_compile_options(_backtester_cpp PRIVATE -O0 -g --coverage)
+        endif()
         target_link_options(ingest_core PUBLIC --coverage)
         target_link_options(ingest PRIVATE --coverage)
         target_link_options(market_data_feed_benchmark PRIVATE --coverage)
         target_link_options(order_gateway_latency_benchmark PRIVATE --coverage)
+        if (BACKTESTER_BUILD_PYTHON)
+            target_link_options(_backtester_cpp PRIVATE --coverage)
+        endif()
     endif()
 endif()
 
@@ -335,6 +384,16 @@ add_test(
 set_tests_properties(order_gateway_latency_benchmark_smoke PROPERTIES
     PASS_REGULAR_EXPRESSION "orders,batch_size,threaded,total_acks,wall_clock_seconds,orders_per_second,avg_latency_ns,min_latency_ns,p50_latency_ns,p95_latency_ns,p99_latency_ns,max_latency_ns[\r\n]+1000,64,1,1000,"
 )
+
+if (BACKTESTER_BUILD_PYTHON)
+    add_test(
+        NAME python_binding_import_tests
+        COMMAND ${Python3_EXECUTABLE} -c "import backtester; import _backtester_cpp; assert _backtester_cpp.version(); assert _backtester_cpp.PRICE_SCALE == 1000000000; assert _backtester_cpp.UNDEFINED_PRICE == 9223372036854775807"
+    )
+    set_tests_properties(python_binding_import_tests PROPERTIES
+        ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/python:${CMAKE_BINARY_DIR}/python"
+    )
+endif()
 
 add_test(
     NAME ingest_smoke_standard
