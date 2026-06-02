@@ -16,6 +16,8 @@ set(INGEST_SOURCES
     src/book/BookManager.cpp
     src/book/LimitOrderBook.cpp
     src/domain/MarketDataEvent.cpp
+    src/gateway/OrderGatewayClient.cpp
+    src/gateway/OrderGatewayServer.cpp
     src/lob/EngineView.cpp
     src/lob/FillSimulator.cpp
     src/lob/HistoricalLOB.cpp
@@ -132,10 +134,17 @@ if (ENABLE_ARROW AND DEFINED ARROW_RUNTIME_DIR)
     set_target_properties(market_data_feed_benchmark PROPERTIES BUILD_RPATH "${ARROW_RUNTIME_DIR}")
 endif()
 
+add_executable(order_gateway_latency_benchmark benchmarks/order_gateway_latency_benchmark.cpp)
+target_link_libraries(order_gateway_latency_benchmark PRIVATE ingest_core)
+if (ENABLE_ARROW AND DEFINED ARROW_RUNTIME_DIR)
+    set_target_properties(order_gateway_latency_benchmark PROPERTIES BUILD_RPATH "${ARROW_RUNTIME_DIR}")
+endif()
+
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(ingest_core PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(ingest PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(market_data_feed_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(order_gateway_latency_benchmark PRIVATE -Wall -Wextra -Wpedantic)
     set_source_files_properties(third_party/simdjson/simdjson.cpp PROPERTIES
         COMPILE_FLAGS "-Wno-error -w")
 
@@ -143,9 +152,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(ingest_core PUBLIC -O0 -g --coverage)
         target_compile_options(ingest PRIVATE -O0 -g --coverage)
         target_compile_options(market_data_feed_benchmark PRIVATE -O0 -g --coverage)
+        target_compile_options(order_gateway_latency_benchmark PRIVATE -O0 -g --coverage)
         target_link_options(ingest_core PUBLIC --coverage)
         target_link_options(ingest PRIVATE --coverage)
         target_link_options(market_data_feed_benchmark PRIVATE --coverage)
+        target_link_options(order_gateway_latency_benchmark PRIVATE --coverage)
     endif()
 endif()
 
@@ -232,12 +243,97 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 add_test(NAME market_data_gap_detector_tests COMMAND market_data_gap_detector_tests)
 
+add_executable(order_message_tests tests/test_order_messages.cpp)
+target_link_libraries(order_message_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(order_message_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(order_message_tests PRIVATE -O0 -g --coverage)
+        target_link_options(order_message_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME order_message_tests COMMAND order_message_tests)
+
+add_executable(order_channel_tests tests/test_order_channel.cpp)
+target_link_libraries(order_channel_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(order_channel_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(order_channel_tests PRIVATE -O0 -g --coverage)
+        target_link_options(order_channel_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME order_channel_tests COMMAND order_channel_tests)
+
+add_executable(order_gateway_client_tests tests/test_order_gateway_client.cpp)
+target_link_libraries(order_gateway_client_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(order_gateway_client_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(order_gateway_client_tests PRIVATE -O0 -g --coverage)
+        target_link_options(order_gateway_client_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME order_gateway_client_tests COMMAND order_gateway_client_tests)
+
+add_executable(order_gateway_server_session_tests tests/test_order_gateway_server_sessions.cpp)
+target_link_libraries(order_gateway_server_session_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(order_gateway_server_session_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(order_gateway_server_session_tests PRIVATE -O0 -g --coverage)
+        target_link_options(order_gateway_server_session_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME order_gateway_server_session_tests COMMAND order_gateway_server_session_tests)
+
+add_executable(order_gateway_server_validation_tests tests/test_order_gateway_server_validation.cpp)
+target_link_libraries(order_gateway_server_validation_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(order_gateway_server_validation_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(order_gateway_server_validation_tests PRIVATE -O0 -g --coverage)
+        target_link_options(order_gateway_server_validation_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME order_gateway_server_validation_tests COMMAND order_gateway_server_validation_tests)
+
+add_executable(order_gateway_fill_tests tests/test_order_gateway_fills.cpp)
+target_link_libraries(order_gateway_fill_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(order_gateway_fill_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(order_gateway_fill_tests PRIVATE -O0 -g --coverage)
+        target_link_options(order_gateway_fill_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME order_gateway_fill_tests COMMAND order_gateway_fill_tests)
+
+add_executable(order_gateway_end_to_end_tests tests/test_order_gateway_end_to_end.cpp)
+target_link_libraries(order_gateway_end_to_end_tests PRIVATE ingest_core)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(order_gateway_end_to_end_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if (ENABLE_COVERAGE)
+        target_compile_options(order_gateway_end_to_end_tests PRIVATE -O0 -g --coverage)
+        target_link_options(order_gateway_end_to_end_tests PRIVATE --coverage)
+    endif()
+endif()
+add_test(NAME order_gateway_end_to_end_tests COMMAND order_gateway_end_to_end_tests)
+
 add_test(
     NAME market_data_feed_benchmark_smoke
     COMMAND market_data_feed_benchmark --subscribers 2 --messages 1000 --batch-size 64
 )
 set_tests_properties(market_data_feed_benchmark_smoke PROPERTIES
     PASS_REGULAR_EXPRESSION "subscribers,messages,total_deliveries,wall_clock_seconds,publishes_per_second,deliveries_per_second[\r\n]+2,1000,2000,"
+)
+
+add_test(
+    NAME order_gateway_latency_benchmark_smoke
+    COMMAND order_gateway_latency_benchmark --orders 1000 --batch-size 64 --threaded 1
+)
+set_tests_properties(order_gateway_latency_benchmark_smoke PROPERTIES
+    PASS_REGULAR_EXPRESSION "orders,batch_size,threaded,total_acks,wall_clock_seconds,orders_per_second,avg_latency_ns,min_latency_ns,p50_latency_ns,p95_latency_ns,p99_latency_ns,max_latency_ns[\r\n]+1000,64,1,1000,"
 )
 
 add_test(

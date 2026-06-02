@@ -29,6 +29,11 @@ The M1 / Group 2 market data feed protocol is documented in
 `BookSnapshot`, and `Trade` message schema, publisher/subscriber API, per-instrument `seq_no`
 policy, gap detection, and the feed throughput benchmark.
 
+The M2 / Group 1 order and trade protocol is documented in
+[`docs/order_trade_protocol.md`](docs/order_trade_protocol.md). It covers the order request/event
+schema, `OrderGatewayClient`, `OrderGatewayServer`, validation rules, fill notifications, and the
+order gateway latency benchmark.
+
 ## Manual build
 
 ```bash

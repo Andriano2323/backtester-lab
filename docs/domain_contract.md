@@ -91,6 +91,8 @@ N = none
 | --- | --- |
 | `New` | Order was created locally |
 | `Accepted` | Backtest engine accepted the order |
+| `ModifyRequested` | Order modification was requested locally |
+| `CancelRequested` | Order cancellation was requested locally |
 | `PartiallyFilled` | Order was partially filled |
 | `Filled` | Order was fully filled |
 | `Cancelled` | Order was cancelled |

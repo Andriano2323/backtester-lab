@@ -59,6 +59,8 @@ enum class OrderStatus : std::uint8_t
 {
     New,
     Accepted,
+    ModifyRequested,
+    CancelRequested,
     PartiallyFilled,
     Filled,
     Cancelled,
