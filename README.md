@@ -22,8 +22,6 @@ The default JSON build has no third-party runtime dependency. JSON NDJSON files 
 
 The `run` script builds the project first and then executes the requested mode. `scripts/benchmark.sh <folder>` builds a release binary and prints report-ready logging and LOB benchmark blocks for that folder.
 
-HW3 multi-engine LOB simulation architecture and demo commands are documented in [`docs/HW3_GROUP3.md`](docs/HW3_GROUP3.md).
-
 The M1 / Group 2 market data feed protocol is documented in
 [`docs/market_data_protocol.md`](docs/market_data_protocol.md). It covers the `BookUpdate`,
 `BookSnapshot`, and `Trade` message schema, publisher/subscriber API, per-instrument `seq_no`
