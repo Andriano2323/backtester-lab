@@ -35,7 +35,21 @@ order gateway latency benchmark.
 The M3 / Group 4 Python Strategy API is documented in
 [`docs/python_strategy_api.md`](docs/python_strategy_api.md). It covers strategy callbacks,
 `backtester.run(...)`, result DataFrames, progress metrics, risk limits, chart helpers, examples,
-and the current synthetic JSONL feed limitations.
+the current synthetic JSONL feed limitations, the tiny integrated C++ L3 runner mode,
+optional Arrow/Feather integrated input, multi-engine `run_many`, and `explain=True` traces.
+Integrated performance and regression-safety benchmarks are documented in
+[`docs/integrated_performance.md`](docs/integrated_performance.md).
+
+The integrated backtest loop contract is documented in
+[`docs/integrated_backtest_contracts.md`](docs/integrated_backtest_contracts.md). It fixes the
+planned market-event lifecycle, order lifecycle, immediate execution policy, gateway-to-fill
+handoff, synthetic-order mapping, and result/trace surface before implementation.
+
+The explainability walkthrough is documented in
+[`docs/explainability.md`](docs/explainability.md), with a deterministic dataset in
+[`examples/data/integrated_explain.ndjson`](examples/data/integrated_explain.ndjson), a runnable
+strategy script in [`examples/python/integrated_explain_strategy.py`](examples/python/integrated_explain_strategy.py),
+and a notebook in [`notebooks/integrated_explainability_walkthrough.ipynb`](notebooks/integrated_explainability_walkthrough.ipynb).
 
 ## Manual build
 

@@ -140,6 +140,7 @@ class StrategyContext:
         self.result.add_order_log(
             timestamp_ns=timestamp_ns,
             trading_engine_id=int(self.metadata.get("trading_engine_id", 0)),
+            strategy_name=self.metadata.get("strategy_name"),
             order_id=0,
             instrument_id=instrument_id,
             side=side.value,
@@ -149,6 +150,20 @@ class StrategyContext:
             event_type="risk_reject",
             reason=reason,
             text=text,
+        )
+        self.result.add_trace(
+            timestamp_ns=timestamp_ns,
+            stage="order_reject",
+            event_type="risk_reject",
+            trading_engine_id=int(self.metadata.get("trading_engine_id", 0)),
+            strategy_name=self.metadata.get("strategy_name"),
+            order_id=0,
+            instrument_id=instrument_id,
+            side=side.value,
+            price=price,
+            size=size,
+            reason=reason,
+            text=f"risk: {text}",
         )
 
     @staticmethod

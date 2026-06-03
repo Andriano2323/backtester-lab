@@ -261,6 +261,25 @@ server.flushEvents();
 
 `emitFill()` only routes to the order's trading engine. It returns `false` and emits no event for unknown engines, unknown orders, terminal orders, or zero-size fills.
 
+Integrated runner transition API:
+
+```cpp
+std::vector<OrderGatewayTransition> transitions =
+    server.drainRequestTransitions();
+```
+
+`drainRequestTransitions()` drains the same request queues and uses the same validation path as
+`drainRequests()`, but returns one transition per processed request. Accepted transitions are
+emitted after the server state has been updated and the matching ack has been queued. Rejected
+transitions are emitted after the reject has been queued. The integrated backtest loop uses these
+transitions to pass accepted orders to `FillSimulator` without duplicating gateway validation.
+
+Existing callers that only need the processed request count can keep using:
+
+```cpp
+std::size_t processed = server.drainRequests();
+```
+
 ## Validation Rules
 
 `OrderGatewayServer` tracks orders by `(TradingEngineId, OrderId)`.

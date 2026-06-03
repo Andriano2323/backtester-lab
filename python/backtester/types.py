@@ -25,6 +25,18 @@ class Side(str, Enum):
     NONE = "N"
 
 
+class Action(str, Enum):
+    """Historical L3 market-data event actions."""
+
+    ADD = "A"
+    MODIFY = "M"
+    CANCEL = "C"
+    CLEAR = "R"
+    TRADE = "T"
+    FILL = "F"
+    NONE = "N"
+
+
 class OrderStatus(str, Enum):
     """Order lifecycle states exposed to Python strategies."""
 
@@ -93,6 +105,22 @@ class Trade:
     price: Price
     size: Quantity
     aggressor_side: Side
+
+
+@dataclass(frozen=True)
+class MarketDataEvent:
+    timestamp: int
+    ts_recv: int = 0
+    ts_event: int = 0
+    order_id: OrderId = 0
+    side: Side = Side.NONE
+    price: Price = 0
+    size: Quantity = 0
+    action: Action = Action.NONE
+    instrument_id: InstrumentId = 0
+    source_file_id: int = 0
+    source_sequence: int = 0
+    line_number: int = 0
 
 
 @dataclass(frozen=True)
