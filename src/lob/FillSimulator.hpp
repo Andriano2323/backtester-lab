@@ -32,6 +32,15 @@ struct SimulatedFill
     TimestampNs timestamp_ns{};
 };
 
+struct SimulatedOrderResult
+{
+    SyntheticOrderId synthetic_order_id{};
+    Quantity requested_size{};
+    Quantity filled_size{};
+    Quantity remaining_size{};
+    std::vector<SimulatedFill> fills{};
+};
+
 class FillSimulator
 {
   public:
@@ -41,6 +50,7 @@ class FillSimulator
     FillSimulator(const HistoricalLobStore& historical, EngineViews& engine_views);
 
     [[nodiscard]] std::vector<SimulatedFill> submitLimitOrder(const SimulatedOrderRequest& request);
+    [[nodiscard]] SimulatedOrderResult submitLimitOrderResult(const SimulatedOrderRequest& request);
 
   private:
     [[nodiscard]] LobSnapshot historicalSnapshot(InstrumentId instrument_id) const;

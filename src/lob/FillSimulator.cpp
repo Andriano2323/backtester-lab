@@ -207,20 +207,32 @@ LobSnapshot FillSimulator::historicalSnapshot(InstrumentId instrument_id) const
 
 std::vector<SimulatedFill> FillSimulator::submitLimitOrder(const SimulatedOrderRequest& request)
 {
-    std::vector<SimulatedFill> fills;
+    return submitLimitOrderResult(request).fills;
+}
+
+SimulatedOrderResult FillSimulator::submitLimitOrderResult(const SimulatedOrderRequest& request)
+{
+    SimulatedOrderResult result{
+        .synthetic_order_id = 0,
+        .requested_size = request.size,
+        .filled_size = 0,
+        .remaining_size = 0,
+        .fills = {},
+    };
     if (!hasValidRequest(request))
     {
-        return fills;
+        return result;
     }
 
     const auto engine_it = engine_views_.find(request.engine_id);
     if (engine_it == engine_views_.end())
     {
-        return fills;
+        return result;
     }
 
     auto& view = engine_it->second;
     const SyntheticOrderId order_id = view.reserveSyntheticOrderId();
+    result.synthetic_order_id = order_id;
     Quantity remaining = request.size;
 
     while (remaining > 0)
@@ -236,7 +248,8 @@ std::vector<SimulatedFill> FillSimulator::submitLimitOrder(const SimulatedOrderR
 
             const auto fill_size = std::min(remaining, best_ask->size);
             view.consumeHistoricalLiquidity(request.instrument_id, Side::Ask, best_ask->price, fill_size);
-            fills.push_back(makeFill(request, order_id, best_ask->price, fill_size));
+            result.fills.push_back(makeFill(request, order_id, best_ask->price, fill_size));
+            result.filled_size += fill_size;
             remaining -= fill_size;
         }
         else
@@ -249,11 +262,13 @@ std::vector<SimulatedFill> FillSimulator::submitLimitOrder(const SimulatedOrderR
 
             const auto fill_size = std::min(remaining, best_bid->size);
             view.consumeHistoricalLiquidity(request.instrument_id, Side::Bid, best_bid->price, fill_size);
-            fills.push_back(makeFill(request, order_id, best_bid->price, fill_size));
+            result.fills.push_back(makeFill(request, order_id, best_bid->price, fill_size));
+            result.filled_size += fill_size;
             remaining -= fill_size;
         }
     }
 
+    result.remaining_size = remaining;
     if (remaining > 0)
     {
         view.addSyntheticOrderWithId(
@@ -265,7 +280,7 @@ std::vector<SimulatedFill> FillSimulator::submitLimitOrder(const SimulatedOrderR
             request.timestamp_ns);
     }
 
-    return fills;
+    return result;
 }
 
 } // namespace md::lob

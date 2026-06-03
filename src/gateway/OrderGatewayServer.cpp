@@ -49,6 +49,19 @@ std::shared_ptr<OrderChannel> OrderGatewayServer::channelFor(TradingEngineId tra
 
 std::size_t OrderGatewayServer::drainRequests()
 {
+    std::vector<OrderGatewayTransition> ignored;
+    return drainRequests(ignored);
+}
+
+std::vector<OrderGatewayTransition> OrderGatewayServer::drainRequestTransitions()
+{
+    std::vector<OrderGatewayTransition> transitions;
+    (void)drainRequests(transitions);
+    return transitions;
+}
+
+std::size_t OrderGatewayServer::drainRequests(std::vector<OrderGatewayTransition>& transitions)
+{
     std::size_t drained = 0;
     for (const TradingEngineId trading_engine_id : engine_order_)
     {
@@ -61,7 +74,7 @@ std::size_t OrderGatewayServer::drainRequests()
         const OrderGatewaySession& session = session_it->second;
         while (std::optional<OrderRequest> request = session.channel->tryPopRequest())
         {
-            processRequest(session, *request);
+            transitions.push_back(processRequest(session, *request));
             ++drained;
         }
     }
@@ -164,29 +177,29 @@ std::optional<OrderSnapshot> OrderGatewayServer::findOrder(TradingEngineId tradi
     return it->second;
 }
 
-void OrderGatewayServer::processRequest(const OrderGatewaySession& session, const OrderRequest& request)
+OrderGatewayTransition OrderGatewayServer::processRequest(const OrderGatewaySession& session, const OrderRequest& request)
 {
-    std::visit(
+    return std::visit(
         [this, &session](const auto& message)
         {
             using Request = std::decay_t<decltype(message)>;
             if constexpr (std::is_same_v<Request, NewOrder>)
             {
-                processNewOrder(session, message);
+                return processNewOrder(session, message);
             }
             else if constexpr (std::is_same_v<Request, CancelOrder>)
             {
-                processCancelOrder(session, message);
+                return processCancelOrder(session, message);
             }
             else if constexpr (std::is_same_v<Request, ModifyOrder>)
             {
-                processModifyOrder(session, message);
+                return processModifyOrder(session, message);
             }
         },
         request);
 }
 
-void OrderGatewayServer::processNewOrder(const OrderGatewaySession& session, const NewOrder& order)
+OrderGatewayTransition OrderGatewayServer::processNewOrder(const OrderGatewaySession& session, const NewOrder& order)
 {
     const OrderFields& request_fields = fields(order);
     const OrderKey key{
@@ -196,47 +209,47 @@ void OrderGatewayServer::processNewOrder(const OrderGatewaySession& session, con
 
     if (orders_by_key_.find(key) != orders_by_key_.end())
     {
-        pushReject(session, request_fields, OrderRejectReason::DuplicateOrderId);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::NewOrder, OrderRejectReason::DuplicateOrderId);
     }
     if (request_fields.instrument_id == 0)
     {
-        pushReject(session, request_fields, OrderRejectReason::InvalidInstrument);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::NewOrder, OrderRejectReason::InvalidInstrument);
     }
     if (!isValidActiveSide(request_fields.side))
     {
-        pushReject(session, request_fields, OrderRejectReason::InvalidSide);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::NewOrder, OrderRejectReason::InvalidSide);
     }
     if (!isDefinedPrice(request_fields.price))
     {
-        pushReject(session, request_fields, OrderRejectReason::InvalidPrice);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::NewOrder, OrderRejectReason::InvalidPrice);
     }
     if (request_fields.size == 0)
     {
-        pushReject(session, request_fields, OrderRejectReason::InvalidQuantity);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::NewOrder, OrderRejectReason::InvalidQuantity);
     }
 
-    orders_by_key_.emplace(
-        key,
-        OrderSnapshot{
-            .trading_engine_id = session.trading_engine_id,
-            .order_id = request_fields.order_id,
-            .instrument_id = request_fields.instrument_id,
-            .side = request_fields.side,
-            .price = request_fields.price,
-            .original_size = request_fields.size,
-            .remaining_size = request_fields.size,
-            .status = OrderStatus::Accepted,
-            .last_timestamp_ns = request_fields.timestamp_ns,
-        });
+    const OrderSnapshot snapshot{
+        .trading_engine_id = session.trading_engine_id,
+        .order_id = request_fields.order_id,
+        .instrument_id = request_fields.instrument_id,
+        .side = request_fields.side,
+        .price = request_fields.price,
+        .original_size = request_fields.size,
+        .remaining_size = request_fields.size,
+        .status = OrderStatus::Accepted,
+        .last_timestamp_ns = request_fields.timestamp_ns,
+    };
+    orders_by_key_.emplace(key, snapshot);
     pushAck(session, request_fields, OrderAckType::NewAccepted, OrderStatus::Accepted);
+    return acceptedTransition(
+        OrderGatewayTransitionType::NewAccepted,
+        OrderMessageType::NewOrder,
+        request_fields,
+        snapshot,
+        OrderStatus::Accepted);
 }
 
-void OrderGatewayServer::processCancelOrder(const OrderGatewaySession& session, const CancelOrder& order)
+OrderGatewayTransition OrderGatewayServer::processCancelOrder(const OrderGatewaySession& session, const CancelOrder& order)
 {
     const OrderFields& request_fields = fields(order);
     const OrderKey key{
@@ -246,21 +259,25 @@ void OrderGatewayServer::processCancelOrder(const OrderGatewaySession& session, 
     const auto it = orders_by_key_.find(key);
     if (it == orders_by_key_.end())
     {
-        pushReject(session, request_fields, OrderRejectReason::UnknownOrderId);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::CancelOrder, OrderRejectReason::UnknownOrderId);
     }
     if (isTerminal(it->second.status))
     {
-        pushReject(session, request_fields, OrderRejectReason::AlreadyTerminal);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::CancelOrder, OrderRejectReason::AlreadyTerminal);
     }
 
     it->second.status = OrderStatus::Cancelled;
     it->second.last_timestamp_ns = request_fields.timestamp_ns;
     pushAck(session, request_fields, OrderAckType::CancelAccepted, OrderStatus::Cancelled);
+    return acceptedTransition(
+        OrderGatewayTransitionType::CancelAccepted,
+        OrderMessageType::CancelOrder,
+        request_fields,
+        it->second,
+        OrderStatus::Cancelled);
 }
 
-void OrderGatewayServer::processModifyOrder(const OrderGatewaySession& session, const ModifyOrder& order)
+OrderGatewayTransition OrderGatewayServer::processModifyOrder(const OrderGatewaySession& session, const ModifyOrder& order)
 {
     const OrderFields& request_fields = fields(order);
     const OrderKey key{
@@ -270,28 +287,23 @@ void OrderGatewayServer::processModifyOrder(const OrderGatewaySession& session, 
     const auto it = orders_by_key_.find(key);
     if (it == orders_by_key_.end())
     {
-        pushReject(session, request_fields, OrderRejectReason::UnknownOrderId);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::ModifyOrder, OrderRejectReason::UnknownOrderId);
     }
     if (isTerminal(it->second.status))
     {
-        pushReject(session, request_fields, OrderRejectReason::AlreadyTerminal);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::ModifyOrder, OrderRejectReason::AlreadyTerminal);
     }
     if (!isValidActiveSide(request_fields.side))
     {
-        pushReject(session, request_fields, OrderRejectReason::InvalidSide);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::ModifyOrder, OrderRejectReason::InvalidSide);
     }
     if (!isDefinedPrice(request_fields.price))
     {
-        pushReject(session, request_fields, OrderRejectReason::InvalidPrice);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::ModifyOrder, OrderRejectReason::InvalidPrice);
     }
     if (request_fields.size == 0)
     {
-        pushReject(session, request_fields, OrderRejectReason::InvalidQuantity);
-        return;
+        return pushReject(session, request_fields, OrderMessageType::ModifyOrder, OrderRejectReason::InvalidQuantity);
     }
 
     it->second.side = request_fields.side;
@@ -301,6 +313,12 @@ void OrderGatewayServer::processModifyOrder(const OrderGatewaySession& session, 
     it->second.status = OrderStatus::Accepted;
     it->second.last_timestamp_ns = request_fields.timestamp_ns;
     pushAck(session, request_fields, OrderAckType::ModifyAccepted, OrderStatus::Accepted);
+    return acceptedTransition(
+        OrderGatewayTransitionType::ModifyAccepted,
+        OrderMessageType::ModifyOrder,
+        request_fields,
+        it->second,
+        OrderStatus::Accepted);
 }
 
 void OrderGatewayServer::pushAck(
@@ -318,9 +336,10 @@ void OrderGatewayServer::pushAck(
     session.channel->pushEvent(std::move(ack));
 }
 
-void OrderGatewayServer::pushReject(
+OrderGatewayTransition OrderGatewayServer::pushReject(
     const OrderGatewaySession& session,
     const OrderFields& request_fields,
+    OrderMessageType request_type,
     OrderRejectReason reason)
 {
     OrderReject reject{
@@ -331,6 +350,37 @@ void OrderGatewayServer::pushReject(
     reject.fields.trading_engine_id = session.trading_engine_id;
     reject.fields.status = OrderStatus::Rejected;
     session.channel->pushEvent(std::move(reject));
+    OrderFields transition_fields = request_fields;
+    transition_fields.trading_engine_id = session.trading_engine_id;
+    transition_fields.status = OrderStatus::Rejected;
+    return OrderGatewayTransition{
+        .type = OrderGatewayTransitionType::Rejected,
+        .request_type = request_type,
+        .fields = transition_fields,
+        .snapshot = {},
+        .reject_reason = reason,
+        .reject_text = rejectText(reason),
+    };
+}
+
+OrderGatewayTransition OrderGatewayServer::acceptedTransition(
+    OrderGatewayTransitionType type,
+    OrderMessageType request_type,
+    const OrderFields& request_fields,
+    const OrderSnapshot& snapshot,
+    OrderStatus final_status) const
+{
+    OrderFields transition_fields = request_fields;
+    transition_fields.trading_engine_id = snapshot.trading_engine_id;
+    transition_fields.status = final_status;
+    return OrderGatewayTransition{
+        .type = type,
+        .request_type = request_type,
+        .fields = transition_fields,
+        .snapshot = snapshot,
+        .reject_reason = OrderRejectReason::InternalError,
+        .reject_text = {},
+    };
 }
 
 bool OrderGatewayServer::isTerminal(OrderStatus status) noexcept

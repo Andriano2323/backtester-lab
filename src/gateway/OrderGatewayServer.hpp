@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -33,6 +34,24 @@ struct OrderSnapshot
     TimestampNs last_timestamp_ns{};
 };
 
+enum class OrderGatewayTransitionType
+{
+    NewAccepted,
+    ModifyAccepted,
+    CancelAccepted,
+    Rejected
+};
+
+struct OrderGatewayTransition
+{
+    OrderGatewayTransitionType type{OrderGatewayTransitionType::Rejected};
+    OrderMessageType request_type{OrderMessageType::NewOrder};
+    OrderFields fields{};
+    OrderSnapshot snapshot{};
+    OrderRejectReason reject_reason{OrderRejectReason::InternalError};
+    std::string reject_text{};
+};
+
 class OrderGatewayServer
 {
   public:
@@ -43,6 +62,8 @@ class OrderGatewayServer
     [[nodiscard]] std::shared_ptr<OrderChannel> channelFor(TradingEngineId trading_engine_id) const;
 
     std::size_t drainRequests();
+    [[nodiscard]] std::vector<OrderGatewayTransition> drainRequestTransitions();
+    std::size_t drainRequests(std::vector<OrderGatewayTransition>& transitions);
     void flushEvents();
     bool emitFill(
         TradingEngineId trading_engine_id,
@@ -73,20 +94,27 @@ class OrderGatewayServer
         }
     };
 
-    void processRequest(const OrderGatewaySession& session, const OrderRequest& request);
-    void processNewOrder(const OrderGatewaySession& session, const NewOrder& order);
-    void processCancelOrder(const OrderGatewaySession& session, const CancelOrder& order);
-    void processModifyOrder(const OrderGatewaySession& session, const ModifyOrder& order);
+    [[nodiscard]] OrderGatewayTransition processRequest(const OrderGatewaySession& session, const OrderRequest& request);
+    [[nodiscard]] OrderGatewayTransition processNewOrder(const OrderGatewaySession& session, const NewOrder& order);
+    [[nodiscard]] OrderGatewayTransition processCancelOrder(const OrderGatewaySession& session, const CancelOrder& order);
+    [[nodiscard]] OrderGatewayTransition processModifyOrder(const OrderGatewaySession& session, const ModifyOrder& order);
 
     void pushAck(
         const OrderGatewaySession& session,
         const OrderFields& request_fields,
         OrderAckType ack_type,
         OrderStatus final_status);
-    void pushReject(
+    [[nodiscard]] OrderGatewayTransition pushReject(
         const OrderGatewaySession& session,
         const OrderFields& request_fields,
+        OrderMessageType request_type,
         OrderRejectReason reason);
+    [[nodiscard]] OrderGatewayTransition acceptedTransition(
+        OrderGatewayTransitionType type,
+        OrderMessageType request_type,
+        const OrderFields& request_fields,
+        const OrderSnapshot& snapshot,
+        OrderStatus final_status) const;
 
     [[nodiscard]] static bool isTerminal(OrderStatus status) noexcept;
     [[nodiscard]] static bool isValidActiveSide(Side side) noexcept;

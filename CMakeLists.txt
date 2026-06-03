@@ -14,6 +14,9 @@ option(BACKTESTER_BUILD_PYTHON "Build optional pybind11 Python extension" OFF)
 
 set(INGEST_SOURCES
     src/app/ArgsParser.cpp
+    src/backtest/IntegratedBacktestEngine.cpp
+    src/backtest/MarketDataEventAdapter.cpp
+    src/backtest/OrderExecutionBridge.cpp
     src/book/BookManager.cpp
     src/book/LimitOrderBook.cpp
     src/domain/MarketDataEvent.cpp
@@ -45,6 +48,9 @@ set(INGEST_SOURCES
 set(INGEST_TEST_SOURCES
     tests/test_main.cpp
     tests/app/ArgsParserTest.cpp
+    tests/backtest/IntegratedBacktestEngineTest.cpp
+    tests/backtest/MarketDataEventAdapterTest.cpp
+    tests/backtest/OrderExecutionBridgeTest.cpp
     tests/book/BookManagerTest.cpp
     tests/book/LimitOrderBookTest.cpp
     tests/concurrency/NonBlockingQueueTest.cpp
