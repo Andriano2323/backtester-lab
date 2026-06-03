@@ -102,6 +102,13 @@ def test_rejected_risk_order_appears_in_order_log_df():
     assert order_log.loc[0, "event_type"] == "risk_reject"
     assert order_log.loc[0, "reason"] == "MaxOrderSize"
 
+    trace = result.trace_df
+    assert len(trace) == 1
+    assert trace.loc[0, "stage"] == "order_reject"
+    assert trace.loc[0, "event_type"] == "risk_reject"
+    assert trace.loc[0, "reason"] == "MaxOrderSize"
+    assert trace.loc[0, "text"].startswith("risk:")
+
 
 def test_strategy_context_send_order_raises_documented_exception_on_risk_reject():
     ctx = _context(RiskLimits(max_order_size=1))

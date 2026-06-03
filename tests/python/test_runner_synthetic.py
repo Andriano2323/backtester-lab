@@ -265,6 +265,63 @@ def test_fill_appears_in_result_fills_df():
     assert fills.iloc[0]["fill_size"] == 5
 
 
+def test_filled_buy_collects_order_log_positions_pnl_and_trace():
+    class BuyAtAskStrategy(Strategy):
+        def on_book_snapshot(self, snapshot, ctx):
+            ctx.send_order(
+                snapshot.instrument_id,
+                Side.BID,
+                snapshot.asks[0].price,
+                2,
+                snapshot.timestamp_ns,
+            )
+
+    result = BacktestRunner(fill_at_touch=True).run(
+        BuyAtAskStrategy(), events=[_book_snapshot()]
+    )
+
+    fills = result.fills_df
+    assert len(fills) == 1
+    assert fills.iloc[0]["fill_price"] == 102_000_000_000
+    assert fills.iloc[0]["fill_size"] == 2
+
+    assert result.order_log_df["event_type"].tolist() == ["new_order", "ack", "fill"]
+    assert not result.pnl_series.empty
+    assert result.pnl_series.index.tolist() == [2]
+
+    positions = result.positions_df
+    assert len(positions) == 1
+    assert positions.iloc[0]["instrument_id"] == 10
+    assert positions.iloc[0]["position"] == 2
+
+    trace = result.trace_df
+    fill_trace = trace[trace["stage"] == "order_fill"].iloc[0]
+    assert fill_trace["reason"] == "crossed_best_ask"
+    assert fill_trace["best_ask_before"] == 102_000_000_000
+    assert fill_trace["price"] == 102_000_000_000
+    assert fill_trace["fill_price"] == 102_000_000_000
+    assert "portfolio_update" in trace["stage"].tolist()
+
+
+def test_gateway_rejected_order_appears_in_order_log_and_trace():
+    class InvalidOrderStrategy(Strategy):
+        def on_book_update(self, update, ctx):
+            ctx.send_order(0, Side.BID, update.price, update.size, update.timestamp_ns)
+
+    result = BacktestRunner().run(InvalidOrderStrategy(), events=[_book_update()])
+
+    order_log = result.order_log_df
+    reject = order_log[order_log["event_type"] == "reject"].iloc[0]
+    assert reject["status"] == "Rejected"
+    assert reject["reason"] == "InvalidInstrument"
+
+    trace = result.trace_df
+    reject_trace = trace[trace["stage"] == "order_reject"].iloc[0]
+    assert reject_trace["event_type"] == "reject"
+    assert reject_trace["reason"] == "InvalidInstrument"
+    assert "gateway_validation" in reject_trace["text"]
+
+
 def test_empty_events_list_returns_empty_but_valid_result():
     result = BacktestRunner().run(Strategy(), events=[])
 
@@ -272,3 +329,5 @@ def test_empty_events_list_returns_empty_but_valid_result():
     assert result.order_log_df.empty
     assert result.fills_df.empty
     assert result.pnl_series.empty
+    assert result.positions_df.empty
+    assert result.trace_df.empty

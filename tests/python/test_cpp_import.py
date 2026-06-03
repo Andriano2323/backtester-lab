@@ -51,3 +51,7 @@ def test_cpp_price_scale_matches_domain_contract(cpp_module):
 
 def test_cpp_undefined_price_matches_domain_contract(cpp_module):
     assert cpp_module.UNDEFINED_PRICE == 9_223_372_036_854_775_807
+
+
+def test_cpp_reports_arrow_feature_flag(cpp_module):
+    assert isinstance(cpp_module.ARROW_ENABLED, bool)

@@ -17,6 +17,7 @@ from .strategy import Strategy
 from .types import (
     BookSnapshot,
     BookUpdate,
+    MarketDataEvent,
     OrderAck,
     OrderAckType,
     OrderFill,
@@ -56,9 +57,40 @@ class _SyntheticOrderGatewayFacade:
         self._next_order_id = 1
         self._orders: dict[int, _SyntheticOrder] = {}
         self._events: deque[OrderAck | OrderFill | OrderReject] = deque()
+        self._fill_trace_context: dict[int, deque[dict[str, Any]]] = {}
+        self._best_bid_by_instrument: dict[int, int] = {}
+        self._best_ask_by_instrument: dict[int, int] = {}
         self._on_ack = None
         self._on_fill = None
         self._on_reject = None
+
+    def update_market_view(self, event: BookUpdate | BookSnapshot | Trade) -> None:
+        instrument_id = int(event.instrument_id)
+        if isinstance(event, BookSnapshot):
+            if event.bids:
+                self._best_bid_by_instrument[instrument_id] = int(event.bids[0].price)
+            else:
+                self._best_bid_by_instrument.pop(instrument_id, None)
+            if event.asks:
+                self._best_ask_by_instrument[instrument_id] = int(event.asks[0].price)
+            else:
+                self._best_ask_by_instrument.pop(instrument_id, None)
+        elif isinstance(event, BookUpdate):
+            side = _python_side(event.side)
+            if side is Side.BID:
+                self._set_visible_price(
+                    self._best_bid_by_instrument, instrument_id, event.price, event.size
+                )
+            elif side is Side.ASK:
+                self._set_visible_price(
+                    self._best_ask_by_instrument, instrument_id, event.price, event.size
+                )
+
+    def visible_best(self, instrument_id: int) -> tuple[int | None, int | None]:
+        return (
+            self._best_bid_by_instrument.get(instrument_id),
+            self._best_ask_by_instrument.get(instrument_id),
+        )
 
     def send_order(
         self, instrument_id: int, side: Side, price: int, size: int, timestamp_ns: int
@@ -66,6 +98,23 @@ class _SyntheticOrderGatewayFacade:
         order_id = self._next_order_id
         self._next_order_id += 1
         side = _python_side(side)
+        best_bid_before, best_ask_before = self.visible_best(instrument_id)
+
+        self._result.add_trace(
+            timestamp_ns=timestamp_ns,
+            stage="order_request",
+            event_type="new_order",
+            trading_engine_id=self._trading_engine_id,
+            order_id=order_id,
+            instrument_id=instrument_id,
+            side=side.value,
+            price=price,
+            size=size,
+            best_bid_before=best_bid_before,
+            best_ask_before=best_ask_before,
+            best_bid_after=best_bid_before,
+            best_ask_after=best_ask_before,
+        )
 
         self._result.add_order_log(
             timestamp_ns=timestamp_ns,
@@ -127,6 +176,38 @@ class _SyntheticOrderGatewayFacade:
         self, order_id: int, instrument_id: int, timestamp_ns: int
     ) -> None:
         order = self._orders.get(order_id)
+        side = order.side if order is not None else Side.NONE
+        price = order.price if order is not None else 0
+        size = order.remaining_size if order is not None else 0
+        best_bid_before, best_ask_before = self.visible_best(instrument_id)
+
+        self._result.add_trace(
+            timestamp_ns=timestamp_ns,
+            stage="order_request",
+            event_type="cancel_order",
+            trading_engine_id=self._trading_engine_id,
+            order_id=order_id,
+            instrument_id=instrument_id,
+            side=side.value,
+            price=price,
+            size=size,
+            best_bid_before=best_bid_before,
+            best_ask_before=best_ask_before,
+            best_bid_after=best_bid_before,
+            best_ask_after=best_ask_before,
+        )
+        self._result.add_order_log(
+            timestamp_ns=timestamp_ns,
+            trading_engine_id=self._trading_engine_id,
+            order_id=order_id,
+            instrument_id=instrument_id,
+            side=side.value,
+            price=price,
+            size=size,
+            status=OrderStatus.CANCEL_REQUESTED.value,
+            event_type="cancel_order",
+        )
+
         if order is None or order.status in {
             OrderStatus.CANCELLED,
             OrderStatus.FILLED,
@@ -174,6 +255,35 @@ class _SyntheticOrderGatewayFacade:
     ) -> None:
         order = self._orders.get(order_id)
         side = _python_side(side)
+        best_bid_before, best_ask_before = self.visible_best(instrument_id)
+
+        self._result.add_trace(
+            timestamp_ns=timestamp_ns,
+            stage="order_request",
+            event_type="modify_order",
+            trading_engine_id=self._trading_engine_id,
+            order_id=order_id,
+            instrument_id=instrument_id,
+            side=side.value,
+            price=price,
+            size=size,
+            best_bid_before=best_bid_before,
+            best_ask_before=best_ask_before,
+            best_bid_after=best_bid_before,
+            best_ask_after=best_ask_before,
+        )
+        self._result.add_order_log(
+            timestamp_ns=timestamp_ns,
+            trading_engine_id=self._trading_engine_id,
+            order_id=order_id,
+            instrument_id=instrument_id,
+            side=side.value,
+            price=price,
+            size=size,
+            status=OrderStatus.MODIFY_REQUESTED.value,
+            event_type="modify_order",
+        )
+
         if order is None or order.status in {
             OrderStatus.CANCELLED,
             OrderStatus.FILLED,
@@ -272,12 +382,24 @@ class _SyntheticOrderGatewayFacade:
         ):
             return False
 
+        best_bid_before, best_ask_before = self.visible_best(order.instrument_id)
         actual_fill_size = min(fill_size, order.remaining_size)
         order.remaining_size -= actual_fill_size
         order.status = (
             OrderStatus.FILLED
             if order.remaining_size == 0
             else OrderStatus.PARTIALLY_FILLED
+        )
+        best_bid_after, best_ask_after = self.visible_best(order.instrument_id)
+        context_queue = self._fill_trace_context.setdefault(order_id, deque())
+        context_queue.append(
+            {
+                "best_bid_before": best_bid_before,
+                "best_ask_before": best_ask_before,
+                "best_bid_after": best_bid_after,
+                "best_ask_after": best_ask_after,
+                "reason": self._fill_reason(order, best_bid_before, best_ask_before),
+            }
         )
         self._events.append(
             OrderFill(
@@ -295,6 +417,26 @@ class _SyntheticOrderGatewayFacade:
             )
         )
         return True
+
+    @staticmethod
+    def _set_visible_price(
+        prices: dict[int, int], instrument_id: int, price: int, size: int
+    ) -> None:
+        if size == 0:
+            if prices.get(instrument_id) == price:
+                prices.pop(instrument_id, None)
+            return
+        prices[instrument_id] = int(price)
+
+    @staticmethod
+    def _fill_reason(
+        order: _SyntheticOrder, best_bid: int | None, best_ask: int | None
+    ) -> str:
+        if order.side is Side.BID and best_ask is not None and order.price >= best_ask:
+            return "crossed_best_ask"
+        if order.side is Side.ASK and best_bid is not None and order.price <= best_bid:
+            return "crossed_best_bid"
+        return "fill_at_touch"
 
     @staticmethod
     def _validate_new_order(
@@ -320,6 +462,7 @@ class _SyntheticOrderGatewayFacade:
 
     def _record_order_event(self, event: OrderAck | OrderFill | OrderReject) -> None:
         if isinstance(event, OrderFill):
+            trace_context = self._pop_fill_trace_context(event.order_id)
             self._result.add_fill(
                 timestamp_ns=event.timestamp_ns,
                 trading_engine_id=event.trading_engine_id,
@@ -333,14 +476,68 @@ class _SyntheticOrderGatewayFacade:
             event_type = "fill"
             reason = None
             text = None
+            self._result.add_trace(
+                timestamp_ns=event.timestamp_ns,
+                stage="order_fill",
+                event_type=event_type,
+                trading_engine_id=event.trading_engine_id,
+                order_id=event.order_id,
+                instrument_id=event.instrument_id,
+                side=event.side.value,
+                price=event.price,
+                size=event.size,
+                best_bid_before=trace_context.get("best_bid_before"),
+                best_ask_before=trace_context.get("best_ask_before"),
+                best_bid_after=trace_context.get("best_bid_after"),
+                best_ask_after=trace_context.get("best_ask_after"),
+                fill_price=event.fill_price,
+                fill_size=event.fill_size,
+                remaining_size=event.remaining_size,
+                reason=trace_context.get("reason"),
+            )
         elif isinstance(event, OrderReject):
             event_type = "reject"
             reason = event.reason.value
             text = event.text
+            best_bid_before, best_ask_before = self.visible_best(event.instrument_id)
+            self._result.add_trace(
+                timestamp_ns=event.timestamp_ns,
+                stage="order_reject",
+                event_type=event_type,
+                trading_engine_id=event.trading_engine_id,
+                order_id=event.order_id,
+                instrument_id=event.instrument_id,
+                side=event.side.value,
+                price=event.price,
+                size=event.size,
+                best_bid_before=best_bid_before,
+                best_ask_before=best_ask_before,
+                best_bid_after=best_bid_before,
+                best_ask_after=best_ask_before,
+                reason=reason,
+                text=f"gateway_validation: {text}",
+            )
         else:
             event_type = "ack"
             reason = None
             text = None
+            best_bid_before, best_ask_before = self.visible_best(event.instrument_id)
+            self._result.add_trace(
+                timestamp_ns=event.timestamp_ns,
+                stage="order_ack",
+                event_type=event_type,
+                trading_engine_id=event.trading_engine_id,
+                order_id=event.order_id,
+                instrument_id=event.instrument_id,
+                side=event.side.value,
+                price=event.price,
+                size=event.size,
+                best_bid_before=best_bid_before,
+                best_ask_before=best_ask_before,
+                best_bid_after=best_bid_before,
+                best_ask_after=best_ask_before,
+                reason=event.ack_type.value,
+            )
 
         self._result.add_order_log(
             timestamp_ns=event.timestamp_ns,
@@ -355,6 +552,15 @@ class _SyntheticOrderGatewayFacade:
             reason=reason,
             text=text,
         )
+
+    def _pop_fill_trace_context(self, order_id: int) -> dict[str, Any]:
+        context_queue = self._fill_trace_context.get(order_id)
+        if not context_queue:
+            return {}
+        context = context_queue.popleft()
+        if not context_queue:
+            self._fill_trace_context.pop(order_id, None)
+        return context
 
 
 @dataclass
@@ -371,12 +577,14 @@ class BacktestRunner:
         strategy: Strategy,
         data_path: Any | None = None,
         date_range: Any | None = None,
-        events: list[BookUpdate | BookSnapshot | Trade] | None = None,
+        events: list[BookUpdate | BookSnapshot | Trade | MarketDataEvent] | None = None,
+        mode: str | None = None,
         progress_callback: Any | None = None,
         progress_interval_seconds: float | None = 30.0,
         progress_interval_events: int | None = None,
         risk_limits: RiskLimits | dict[str, Any] | None = None,
         context: StrategyContext | None = None,
+        explain: bool | None = None,
     ) -> BacktestResult:
         if not isinstance(strategy, Strategy):
             raise TypeError("strategy must be an instance of backtester.Strategy")
@@ -385,10 +593,32 @@ class BacktestRunner:
         if isinstance(data_path, StrategyContext) and context is None:
             context = data_path
             data_path = None
+        selected_mode = str(mode or self.config.get("mode", "synthetic")).lower()
+        if selected_mode == "integrated":
+            from .integrated_runner import IntegratedBacktestRunner
+
+            return IntegratedBacktestRunner(
+                config=self.config,
+                trading_engine_id=self.trading_engine_id,
+                risk_limits=self.risk_limits,
+            ).run(
+                strategy,
+                data_path=data_path,
+                date_range=date_range,
+                events=events,
+                progress_callback=progress_callback,
+                progress_interval_seconds=progress_interval_seconds,
+                progress_interval_events=progress_interval_events,
+                risk_limits=risk_limits,
+                context=context,
+                explain=explain,
+            )
+        if selected_mode != "synthetic":
+            raise ValueError("mode must be 'synthetic' or 'integrated'")
         if data_path is not None and events is None:
             events = load_events(data_path, date_range=date_range)
 
-        result = BacktestResult()
+        result = BacktestResult(trace_enabled=self._trace_enabled(explain))
         replay_events = sorted(list(events or []), key=_timestamp_ns)
         gateway = _SyntheticOrderGatewayFacade(
             result,
@@ -435,6 +665,18 @@ class BacktestRunner:
             last_progress_processed = processed_events
 
         for processed_events, event in enumerate(replay_events, start=1):
+            instrument_id = int(event.instrument_id)
+            best_bid_before, best_ask_before = gateway.visible_best(instrument_id)
+            gateway.update_market_view(event)
+            best_bid_after, best_ask_after = gateway.visible_best(instrument_id)
+            self._record_market_trace(
+                result,
+                event,
+                best_bid_before,
+                best_ask_before,
+                best_bid_after,
+                best_ask_after,
+            )
             if ctx.portfolio is not None:
                 ctx.portfolio.update_market_data(event)
             self._dispatch_market_event(strategy, event, ctx)
@@ -460,8 +702,51 @@ class BacktestRunner:
         strategy.on_finish(result, ctx)
         return result
 
+    def run_many(
+        self,
+        strategies: dict[str, Strategy] | list[Strategy] | tuple[Strategy, ...],
+        data_path: Any | None = None,
+        date_range: Any | None = None,
+        events: list[BookUpdate | BookSnapshot | Trade | MarketDataEvent] | None = None,
+        mode: str | None = None,
+        progress_callback: Any | None = None,
+        progress_interval_seconds: float | None = 30.0,
+        progress_interval_events: int | None = None,
+        risk_limits: RiskLimits | dict[str, Any] | None = None,
+        contexts: dict[str, StrategyContext] | None = None,
+        explain: bool | None = None,
+    ) -> BacktestResult:
+        selected_mode = str(mode or self.config.get("mode", "integrated")).lower()
+        if selected_mode != "integrated":
+            raise ValueError("run_many currently supports mode='integrated'")
+
+        from .integrated_runner import IntegratedBacktestRunner
+
+        return IntegratedBacktestRunner(
+            config=self.config,
+            trading_engine_id=self.trading_engine_id,
+            risk_limits=self.risk_limits,
+        ).run_many(
+            strategies,
+            data_path=data_path,
+            date_range=date_range,
+            events=events,
+            progress_callback=progress_callback,
+            progress_interval_seconds=progress_interval_seconds,
+            progress_interval_events=progress_interval_events,
+            risk_limits=risk_limits,
+            contexts=contexts,
+            explain=explain,
+        )
+
     def _config_bool(self, name: str) -> bool:
         return bool(self.config.get(name, False))
+
+    def _trace_enabled(self, explain: bool | None = None) -> bool:
+        if explain is not None:
+            return bool(explain)
+        configured = self.config.get("explain", self.config.get("trace_enabled", True))
+        return bool(configured)
 
     def _risk_limits(
         self, override: RiskLimits | dict[str, Any] | None = None
@@ -502,7 +787,71 @@ class BacktestRunner:
     def _handle_fill(strategy: Strategy, fill: OrderFill, ctx: StrategyContext) -> None:
         if ctx.portfolio is not None:
             ctx.portfolio.on_fill(fill)
+        BacktestRunner._record_position_update(fill, ctx)
         strategy.on_fill(fill, ctx)
+
+    @staticmethod
+    def _record_position_update(fill: OrderFill, ctx: StrategyContext) -> None:
+        if ctx.result is None:
+            return
+
+        realized_pnl = int(getattr(ctx.portfolio, "realized_pnl", 0))
+        unrealized_pnl = (
+            int(ctx.portfolio.unrealized_pnl(fill.instrument_id))
+            if ctx.portfolio is not None
+            else 0
+        )
+        current_pnl = ctx.current_pnl()
+        position = ctx.current_position(fill.instrument_id)
+
+        ctx.result.add_position(
+            timestamp_ns=fill.timestamp_ns,
+            trading_engine_id=fill.trading_engine_id,
+            instrument_id=fill.instrument_id,
+            position=position,
+            realized_pnl=realized_pnl,
+            unrealized_pnl=unrealized_pnl,
+            pnl=current_pnl,
+        )
+        ctx.result.add_trace(
+            timestamp_ns=fill.timestamp_ns,
+            stage="portfolio_update",
+            event_type="position_update",
+            trading_engine_id=fill.trading_engine_id,
+            order_id=fill.order_id,
+            instrument_id=fill.instrument_id,
+            side=fill.side.value,
+            price=fill.price,
+            size=fill.size,
+            fill_price=fill.fill_price,
+            fill_size=fill.fill_size,
+            remaining_size=fill.remaining_size,
+            reason="fill",
+            text=f"position={position}; pnl={current_pnl}",
+        )
+
+    @staticmethod
+    def _record_market_trace(
+        result: BacktestResult,
+        event: BookUpdate | BookSnapshot | Trade,
+        best_bid_before: int | None,
+        best_ask_before: int | None,
+        best_bid_after: int | None,
+        best_ask_after: int | None,
+    ) -> None:
+        result.add_trace(
+            timestamp_ns=event.timestamp_ns,
+            stage="market_event",
+            event_type=_market_event_type(event),
+            instrument_id=event.instrument_id,
+            side=_market_event_side(event),
+            price=_market_event_price(event),
+            size=_market_event_size(event),
+            best_bid_before=best_bid_before,
+            best_ask_before=best_ask_before,
+            best_bid_after=best_bid_after,
+            best_ask_after=best_ask_after,
+        )
 
     @staticmethod
     def _should_emit_progress(
@@ -543,6 +892,36 @@ def _timestamp_ns(event: BookUpdate | BookSnapshot | Trade) -> int:
     return int(getattr(event, "timestamp_ns"))
 
 
+def _market_event_type(event: BookUpdate | BookSnapshot | Trade) -> str:
+    if isinstance(event, BookUpdate):
+        return "book_update"
+    if isinstance(event, BookSnapshot):
+        return "book_snapshot"
+    if isinstance(event, Trade):
+        return "trade"
+    return type(event).__name__
+
+
+def _market_event_side(event: BookUpdate | BookSnapshot | Trade) -> str | None:
+    if isinstance(event, BookUpdate):
+        return _python_side(event.side).value
+    if isinstance(event, Trade):
+        return _python_side(event.aggressor_side).value
+    return None
+
+
+def _market_event_price(event: BookUpdate | BookSnapshot | Trade) -> int | None:
+    if isinstance(event, (BookUpdate, Trade)):
+        return event.price
+    return None
+
+
+def _market_event_size(event: BookUpdate | BookSnapshot | Trade) -> int | None:
+    if isinstance(event, (BookUpdate, Trade)):
+        return event.size
+    return None
+
+
 def _python_side(side: Any) -> Side:
     if isinstance(side, Side):
         return side
@@ -570,4 +949,26 @@ def run(
     return runner.run(strategy, data_path=data_path, date_range=date_range, **kwargs)
 
 
-__all__ = ["BacktestRunner", "run"]
+def run_many(
+    strategies: dict[str, Strategy] | list[Strategy] | tuple[Strategy, ...],
+    data_path: Any | None = None,
+    date_range: Any | None = None,
+    **kwargs: Any,
+) -> BacktestResult:
+    """Convenience API for integrated multi-strategy backtests."""
+
+    runner_kwargs: dict[str, Any] = {}
+    for name in ("config", "trading_engine_id", "fill_at_touch"):
+        if name in kwargs:
+            runner_kwargs[name] = kwargs.pop(name)
+
+    runner = BacktestRunner(**runner_kwargs)
+    return runner.run_many(
+        strategies,
+        data_path=data_path,
+        date_range=date_range,
+        **kwargs,
+    )
+
+
+__all__ = ["BacktestRunner", "run", "run_many"]

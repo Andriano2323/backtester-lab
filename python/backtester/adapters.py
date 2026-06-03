@@ -6,8 +6,10 @@ from typing import Any
 
 from ._cpp import require_cpp
 from .types import (
+    Action,
     BookSnapshot,
     BookUpdate,
+    MarketDataEvent,
     OrderAck,
     OrderAckType,
     OrderFill,
@@ -58,6 +60,23 @@ def _cpp_side(side: Side):
     if side is Side.BID:
         return cpp.Side.Bid
     return getattr(cpp.Side, "None")
+
+
+def _cpp_action(action: Action):
+    cpp = require_cpp()
+    if action is Action.ADD:
+        return cpp.Action.Add
+    if action is Action.MODIFY:
+        return cpp.Action.Modify
+    if action is Action.CANCEL:
+        return cpp.Action.Cancel
+    if action is Action.CLEAR:
+        return cpp.Action.Clear
+    if action is Action.TRADE:
+        return cpp.Action.Trade
+    if action is Action.FILL:
+        return cpp.Action.Fill
+    return getattr(cpp.Action, "None")
 
 
 def _cpp_order_status(status: OrderStatus):
@@ -154,6 +173,24 @@ def to_cpp_trade(trade: Trade):
         price=trade.price,
         size=trade.size,
         aggressor_side=_cpp_side(trade.aggressor_side),
+    )
+
+
+def to_cpp_market_data_event(event: MarketDataEvent):
+    cpp = require_cpp()
+    return cpp.MarketDataEvent(
+        timestamp=event.timestamp,
+        ts_recv=event.ts_recv,
+        ts_event=event.ts_event,
+        order_id=event.order_id,
+        side=_cpp_side(_python_side(event.side)),
+        price=event.price,
+        size=event.size,
+        action=_cpp_action(_python_action(event.action)),
+        instrument_id=event.instrument_id,
+        source_file_id=event.source_file_id,
+        source_sequence=event.source_sequence,
+        line_number=event.line_number,
     )
 
 
@@ -283,7 +320,20 @@ def to_cpp_message(message: Any):
     raise TypeError(f"Unsupported Python message type: {type(message)!r}")
 
 
+def _python_side(side: Any) -> Side:
+    if isinstance(side, Side):
+        return side
+    return Side(side)
+
+
+def _python_action(action: Any) -> Action:
+    if isinstance(action, Action):
+        return action
+    return Action(action)
+
+
 python_to_cpp_side = _cpp_side
+python_to_cpp_action = _cpp_action
 
 
 __all__ = [
@@ -296,6 +346,8 @@ __all__ = [
     "from_cpp_price_level",
     "from_cpp_trade",
     "python_to_cpp_side",
+    "python_to_cpp_action",
+    "to_cpp_market_data_event",
     "to_cpp_book_snapshot",
     "to_cpp_book_update",
     "to_cpp_message",
