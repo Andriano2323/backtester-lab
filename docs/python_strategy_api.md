@@ -8,7 +8,9 @@ The implementation lives in:
 python/backtester/
 bindings/python/backtester_module.cpp
 examples/python/mean_reversion_strategy.py
+examples/python/integrated_explain_strategy.py
 notebooks/mean_reversion_example.ipynb
+notebooks/integrated_explainability_walkthrough.ipynb
 ```
 
 ## Purpose
@@ -17,7 +19,8 @@ Group 4 provides the Python user-facing layer on top of the C++ backtester proto
 
 - Group 2 market data messages are exposed as Python dataclasses and optional C++ bindings.
 - Group 1 order gateway messages and runtime components are wrapped for Python callbacks.
-- `BacktestRunner` currently supports deterministic synthetic Python feeds and a simple JSONL fixture loader.
+- `BacktestRunner` supports deterministic synthetic Python feeds, a simple JSONL fixture loader,
+  and a tiny integrated mode that drives strategy market callbacks from the C++ L3 event loop.
 - Strategy authors interact with `StrategyContext`, not raw pybind11 objects.
 
 The Python API is intended for strategy logic, research, testing, examples, and reporting. Hot-path matching, LOB mutation, and transport primitives remain C++ responsibilities.
@@ -47,6 +50,20 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
 cmake --build build -j
 ```
 
+Optional Arrow/Feather integrated input build:
+
+```bash
+pip install pyarrow
+
+cmake -S . -B build-arrow -DCMAKE_BUILD_TYPE=Debug \
+  -DENABLE_ARROW=ON \
+  -DBACKTESTER_BUILD_PYTHON=ON \
+  -DPython3_EXECUTABLE="$(which python)"
+
+cmake --build build-arrow -j
+PYTHONPATH=python:build-arrow/python pytest -q tests/python
+```
+
 Run Python tests with both pure Python package code and the compiled extension visible:
 
 ```bash
@@ -61,7 +78,7 @@ Core user-facing objects:
 | --- | --- |
 | `Strategy` | Base class for strategy callbacks. |
 | `StrategyContext` | Runtime services exposed to strategies, including order submission, position/PnL, and metrics. |
-| `BacktestRunner` | Replays Python market data events or JSONL fixtures into a strategy. |
+| `BacktestRunner` | Replays Python market data events, JSONL fixtures, or integrated C++ L3 events into a strategy. |
 | `BacktestResult` | Stores result records and exposes pandas outputs. |
 | `ProgressMetrics` | Progress snapshot sent to `on_progress` and optional callbacks. |
 | `RiskLimits` | Minimal Python risk-limit configuration enforced before order submission. |
@@ -72,6 +89,18 @@ Top-level convenience API:
 import backtester as backtest
 
 result = backtest.run(strategy, data_path=None, date_range=None, events=events)
+```
+
+Integrated explainability runs can make tracing explicit:
+
+```python
+result = backtest.run(
+    strategy,
+    data_path="examples/data/integrated_explain.ndjson",
+    mode="integrated",
+    explain=True,
+    config={"instruments": [10], "snapshot_interval_events": 1},
+)
 ```
 
 ## Strategy Callback Lifecycle
@@ -162,6 +191,18 @@ Notebook deliverable:
 notebooks/mean_reversion_example.ipynb
 ```
 
+Integrated explainability example:
+
+```bash
+PYTHONPATH=python:build/python python examples/python/integrated_explain_strategy.py
+```
+
+Notebook walkthrough:
+
+```text
+notebooks/integrated_explainability_walkthrough.ipynb
+```
+
 ## Running A Backtest
 
 Use in-memory Python events:
@@ -204,15 +245,185 @@ Supported JSONL records:
 {"type":"trade","instrument_id":10,"timestamp_ns":300,"seq_no":3,"price":101500000000,"size":2,"aggressor_side":"ASK"}
 ```
 
+Use integrated mode for a tiny C++ L3 vertical slice:
+
+```python
+import backtester as backtest
+from backtester import Action, MarketDataEvent, Strategy
+from backtester.types import Side
+
+
+class BuyAtAsk(Strategy):
+    def on_book_snapshot(self, snapshot, ctx):
+        ctx.send_order(snapshot.instrument_id, Side.BID, snapshot.asks[0].price, 1, snapshot.timestamp_ns)
+
+
+events = [
+    MarketDataEvent(
+        timestamp=1,
+        ts_recv=1,
+        ts_event=1,
+        order_id=9001,
+        side=Side.ASK,
+        price=102_000_000_000,
+        size=4,
+        action=Action.ADD,
+        instrument_id=10,
+    )
+]
+
+result = backtest.run(
+    BuyAtAsk(),
+    events=events,
+    mode="integrated",
+    config={
+        "instruments": [10],
+        "publish_book_updates": False,
+        "snapshot_interval_events": 1,
+    },
+)
+```
+
+Integrated mode accepts explicit `MarketDataEvent` objects and Databento-style
+JSONL/NDJSON through `data_path`:
+
+```python
+result = backtest.run(
+    strategy,
+    data_path="tests/fixtures/integrated_l3/tiny_real.ndjson",
+    date_range=(None, None),
+    mode="integrated",
+    config={
+        "input_mode": "standard",  # standard for one file; flat/hierarchy for folders
+        "instruments": [10],
+        "publish_book_updates": False,
+        "snapshot_interval_events": 1,
+    },
+)
+```
+
+Feather input uses the same canonical `MarketDataEvent` path when the extension
+is built with `ENABLE_ARROW=ON`:
+
+```python
+result = backtest.run(
+    strategy,
+    data_path="data_feather/XEUR-20260409-HTT6HHLT6R",
+    mode="integrated",
+    config={
+        "input_mode": "flat",
+        "input_format": "feather",
+        "instruments": [12345],
+        "snapshot_interval_events": 1000,
+    },
+)
+```
+
+For folder input, `input_mode="flat"` and `input_mode="hierarchy"` both preserve
+the global `(timestamp, source_file_id, source_sequence)` ordering contract for
+the Python integrated runner. With no market-data publish options enabled,
+integrated mode mutates the C++ LOB and records metrics without calling Python
+for every L3 event.
+
+Integrated execution defaults to the optimistic `immediate` model, where an
+accepted order can fill against the current post-event book. To test activation
+delay, configure `latency_ns` or set `execution_model="latency"` explicitly:
+
+```python
+result = backtest.run(
+    strategy,
+    data_path="tests/fixtures/integrated_l3/tiny_real.ndjson",
+    mode="integrated",
+    config={
+        "execution_model": "latency",
+        "latency_ns": 50_000,
+        "instruments": [10],
+        "snapshot_interval_events": 1,
+    },
+)
+```
+
+In latency mode, accepted orders become fill-eligible only at
+`order_timestamp_ns + latency_ns`. `result.trace_df` includes
+`activation_time_ns` and an `activation_pending` row when an order is not active
+yet.
+
+Explainability tracing is enabled by default and can be requested explicitly with
+`explain=True`. Use `explain=False` to skip trace accumulation while preserving
+fills, order logs, positions, PnL, and metrics. The research-facing trace column
+is `explain_stage`, which groups raw runtime stages into:
+
+```text
+market
+strategy_order
+ack
+reject
+fill
+portfolio_update
+```
+
+For long runs, use snapshot and callback throttles to control Python callback
+pressure:
+
+```python
+config = {
+    "publish_book_updates": False,
+    "publish_trades": False,
+    "snapshot_interval_events": 100,
+    "market_callback_interval_events": 10,
+}
+```
+
+`snapshot_interval_events` reduces published snapshots. `market_callback_interval_events`
+lets the Python strategy see only every Nth market message; `0` disables market
+callbacks while the runner still replays the LOB.
+
+Multi-strategy integrated runs use `run_many`. The historical LOB is shared, but
+each strategy receives its own engine id, order gateway, portfolio, and private
+consumed-liquidity view:
+
+```python
+result = backtest.run_many(
+    {
+        "alpha": AlphaStrategy(),
+        "beta": BetaStrategy(),
+    },
+    data_path="tests/fixtures/integrated_l3/tiny_real.ndjson",
+    mode="integrated",
+    config={
+        "strategy_engine_ids": {
+            "alpha": 11,
+            "beta": 22,
+        },
+        "instruments": [10],
+        "snapshot_interval_events": 1,
+    },
+)
+```
+
+Order ids are scoped by `(trading_engine_id, order_id)`, so both strategies can
+have `order_id == 1` without colliding. Result tables include `strategy_name`
+where strategy-level grouping is meaningful:
+
+```python
+alpha_result = result.for_strategy("alpha")
+engine_22_result = result.for_engine(22)
+strategy_results = result.by_strategy()
+engine_results = result.by_engine()
+```
+
 ## Result Object
 
 `BacktestResult` stores raw records and exposes pandas objects:
 
 ```python
 result.pnl_series      # pandas.Series indexed by timestamp_ns
+result.pnl_df          # pandas.DataFrame with engine/strategy grouping columns
 result.fills_df        # pandas.DataFrame
 result.order_log_df    # pandas.DataFrame
 result.metrics_df      # pandas.DataFrame
+result.positions_df    # pandas.DataFrame
+result.trace_df        # pandas.DataFrame
 ```
 
 Stable result columns are tested in `tests/python/test_result.py`.
@@ -326,10 +537,27 @@ events,wall_clock_seconds,callbacks_per_second
 
 Numbers depend on the machine and build.
 
+Integrated replay overhead:
+
+```bash
+PYTHONPATH=python:build/python \
+python benchmarks/integrated_benchmark.py \
+  --events 100000 \
+  --snapshot-interval 100 \
+  --callback-interval 1 \
+  --orders-every 0
+```
+
+The integrated benchmark reports `events_per_second`, `callbacks_per_second`,
+`orders_per_second`, `fills_per_second`, and `trace_rows` for
+`ingestion_only`, `lob_only`, `integrated_no_strategy`, and
+`integrated_strategy`.
+
 ## Current Limitations
 
 - The JSONL Python feed loader is a simple fixture loader.
-- Full Databento L3 -> LOB -> Python strategy integration will be connected later.
+- Integrated mode supports canonical L3 JSONL fixtures and optional Feather input
+  when the extension is built with Arrow.
 - Python is not intended for hot-path matching logic.
 - The current Python runner uses a simple synthetic server behavior for accepts and optional fills.
 - No live trading, network FIX protocol, persistent order journal, or production execution gateway is implemented.
