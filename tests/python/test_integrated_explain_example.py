@@ -85,9 +85,7 @@ def test_integrated_explain_notebook_smoke_loads_and_references_script():
     notebook = json.loads(NOTEBOOK_PATH.read_text())
 
     source = "\n".join(
-        line
-        for cell in notebook["cells"]
-        for line in cell.get("source", [])
+        line for cell in notebook["cells"] for line in cell.get("source", [])
     )
     assert "integrated_explain_strategy" in source
     assert "run_example(explain=True)" in source

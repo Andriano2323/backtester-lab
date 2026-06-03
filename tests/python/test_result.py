@@ -316,13 +316,19 @@ def test_order_statistics_counts_sent_cancelled_filled_and_rejected():
 
 def test_result_filters_by_engine_and_strategy():
     result = BacktestResult()
-    result.add_order_log(1, 1, 101, 10, "B", 100, 1, "Accepted", "new_order", strategy_name="alpha")
-    result.add_order_log(1, 2, 101, 10, "B", 100, 1, "Accepted", "new_order", strategy_name="beta")
+    result.add_order_log(
+        1, 1, 101, 10, "B", 100, 1, "Accepted", "new_order", strategy_name="alpha"
+    )
+    result.add_order_log(
+        1, 2, 101, 10, "B", 100, 1, "Accepted", "new_order", strategy_name="beta"
+    )
     result.add_fill(2, 1, 101, 10, "B", 100, 1, 0, strategy_name="alpha")
     result.add_fill(2, 2, 101, 10, "B", 100, 1, 0, strategy_name="beta")
     result.add_pnl_point(2, 10, trading_engine_id=1, strategy_name="alpha")
     result.add_pnl_point(2, 20, trading_engine_id=2, strategy_name="beta")
-    result.add_trace(2, "order_fill", "fill", trading_engine_id=1, strategy_name="alpha")
+    result.add_trace(
+        2, "order_fill", "fill", trading_engine_id=1, strategy_name="alpha"
+    )
     result.add_trace(2, "order_fill", "fill", trading_engine_id=2, strategy_name="beta")
 
     alpha = result.for_strategy("alpha")

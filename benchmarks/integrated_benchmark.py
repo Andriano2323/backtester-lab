@@ -15,7 +15,6 @@ for path in (REPO_ROOT / "build" / "python", REPO_ROOT / "python"):
     if path.exists() and str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import backtester as backtest  # noqa: E402
 from backtester import BacktestRunner, Strategy  # noqa: E402
 from backtester._cpp import require_cpp  # noqa: E402
 from backtester.adapters import to_cpp_market_data_event  # noqa: E402

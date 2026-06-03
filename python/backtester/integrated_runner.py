@@ -53,7 +53,11 @@ class _MarketView:
             self._set_snapshot_side(self.best_bids, instrument_id, message.bids)
             self._set_snapshot_side(self.best_asks, instrument_id, message.asks)
         elif isinstance(message, BookUpdate):
-            target = self.best_bids if _python_side(message.side) is Side.BID else self.best_asks
+            target = (
+                self.best_bids
+                if _python_side(message.side) is Side.BID
+                else self.best_asks
+            )
             self._set_update_side(target, instrument_id, message.price, message.size)
 
     def visible_best(self, instrument_id: int) -> tuple[int | None, int | None]:
@@ -237,7 +241,9 @@ class _IntegratedOrderGatewayFacade:
         size: int,
         timestamp_ns: int,
     ) -> None:
-        self._cpp_facade.modify_order(order_id, instrument_id, side, price, size, timestamp_ns)
+        self._cpp_facade.modify_order(
+            order_id, instrument_id, side, price, size, timestamp_ns
+        )
 
     def drain_events(self) -> int:
         return self._cpp_facade.drain_events()
@@ -285,9 +291,7 @@ class _IntegratedOrderGatewayFacade:
     def consume_historical_liquidity(
         self, instrument_id: int, side: Side, price: int, size: int
     ) -> None:
-        self._market_view.consume_historical_liquidity(
-            instrument_id, side, price, size
-        )
+        self._market_view.consume_historical_liquidity(instrument_id, side, price, size)
 
     def pop_fill_trace_context(self, order_id: int) -> dict[str, Any]:
         queue = self._fill_trace_context.get(order_id)
@@ -616,7 +620,9 @@ class IntegratedBacktestRunner:
         self, strategies: dict[str, Strategy] | list[Strategy] | tuple[Strategy, ...]
     ) -> list[tuple[str, Strategy, int]]:
         if isinstance(strategies, dict):
-            named_strategies = [(str(name), strategy) for name, strategy in strategies.items()]
+            named_strategies = [
+                (str(name), strategy) for name, strategy in strategies.items()
+            ]
         else:
             named_strategies = []
             used_names: set[str] = set()
@@ -636,11 +642,12 @@ class IntegratedBacktestRunner:
             raise ValueError("strategy names must be unique")
         for _, strategy in named_strategies:
             if not isinstance(strategy, Strategy):
-                raise TypeError("all strategies must be instances of backtester.Strategy")
+                raise TypeError(
+                    "all strategies must be instances of backtester.Strategy"
+                )
         engine_ids = self._strategy_engine_ids(names)
         return [
-            (name, strategy, engine_ids[name])
-            for name, strategy in named_strategies
+            (name, strategy, engine_ids[name]) for name, strategy in named_strategies
         ]
 
     def _strategy_engine_ids(self, strategy_names: list[str]) -> dict[str, int]:
@@ -709,7 +716,9 @@ class IntegratedBacktestRunner:
                 }
             )
         config.instruments = list(configured_instruments)
-        config.publish_book_updates = bool(self.config.get("publish_book_updates", False))
+        config.publish_book_updates = bool(
+            self.config.get("publish_book_updates", False)
+        )
         config.publish_trades = bool(self.config.get("publish_trades", True))
         config.snapshot_depth = int(self.config.get("snapshot_depth", 5))
         config.snapshot_interval_events = int(
@@ -735,7 +744,9 @@ class IntegratedBacktestRunner:
     def _record_engine_metrics(result: BacktestResult, engine: Any) -> None:
         stats = engine.stats()
         result.add_metric("integrated_input_event_count", int(stats.input_event_count))
-        result.add_metric("integrated_accepted_event_count", int(stats.accepted_event_count))
+        result.add_metric(
+            "integrated_accepted_event_count", int(stats.accepted_event_count)
+        )
         result.add_metric(
             "integrated_skipped_by_filter_count",
             int(stats.skipped_by_filter_count),
@@ -753,7 +764,9 @@ class IntegratedBacktestRunner:
     def _risk_limits(
         self, override: RiskLimits | dict[str, Any] | None = None
     ) -> RiskLimits | None:
-        configured = override if override is not None else self.config.get("risk_limits")
+        configured = (
+            override if override is not None else self.config.get("risk_limits")
+        )
         if isinstance(configured, RiskLimits):
             return configured
         if isinstance(configured, dict):
@@ -778,7 +791,9 @@ class IntegratedBacktestRunner:
         ctx: StrategyContext,
         market_view: _MarketView,
     ) -> None:
-        best_bid_before, best_ask_before = market_view.visible_best(message.instrument_id)
+        best_bid_before, best_ask_before = market_view.visible_best(
+            message.instrument_id
+        )
         market_view.update(message)
         best_bid_after, best_ask_after = market_view.visible_best(message.instrument_id)
         if ctx.portfolio is not None:
@@ -930,7 +945,9 @@ class IntegratedBacktestRunner:
             )
             if request_count == 0 and event_count == 0 and fill_count == 0:
                 return
-        raise IntegratedBacktestError("integrated multi-engine order flow did not quiesce")
+        raise IntegratedBacktestError(
+            "integrated multi-engine order flow did not quiesce"
+        )
 
     def _emit_crossing_fills(
         self,
@@ -1264,9 +1281,7 @@ class IntegratedBacktestRunner:
             raise
         except Exception as exc:
             suffix = (
-                f" at timestamp_ns={timestamp_ns}"
-                if timestamp_ns is not None
-                else ""
+                f" at timestamp_ns={timestamp_ns}" if timestamp_ns is not None else ""
             )
             raise IntegratedBacktestError(
                 f"integrated strategy callback {callback_name} failed{suffix}: {exc}"
@@ -1307,9 +1322,7 @@ def _python_side(side: Any) -> Side:
     return Side(side)
 
 
-def _no_fill_reason(
-    side: Side, best_bid: int | None, best_ask: int | None
-) -> str:
+def _no_fill_reason(side: Side, best_bid: int | None, best_ask: int | None) -> str:
     if side is Side.BID and best_ask is None:
         return "no_visible_liquidity"
     if side is Side.ASK and best_bid is None:

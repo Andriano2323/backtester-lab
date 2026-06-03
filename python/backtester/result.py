@@ -280,7 +280,9 @@ class BacktestResult:
                 engine_id = getattr(record, "trading_engine_id", None)
                 if engine_id is not None:
                     engine_ids.add(int(engine_id))
-        return {engine_id: self.for_engine(engine_id) for engine_id in sorted(engine_ids)}
+        return {
+            engine_id: self.for_engine(engine_id) for engine_id in sorted(engine_ids)
+        }
 
     def by_strategy(self) -> dict[str, "BacktestResult"]:
         """Group result records by strategy name."""

@@ -120,8 +120,10 @@ def _is_json_file(path: Path) -> bool:
 
 def _is_feather_file(path: Path) -> bool:
     filename = path.name.lower()
-    return bool(filename) and not filename.startswith(".") and filename.endswith(
-        (".feather", ".ftr")
+    return (
+        bool(filename)
+        and not filename.startswith(".")
+        and filename.endswith((".feather", ".ftr"))
     )
 
 

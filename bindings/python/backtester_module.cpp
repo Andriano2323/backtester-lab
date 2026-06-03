@@ -1,6 +1,6 @@
 #include "backtest/IntegratedBacktestEngine.hpp"
-#include "domain/Types.hpp"
 #include "domain/MarketDataEvent.hpp"
+#include "domain/Types.hpp"
 #include "gateway/OrderChannel.hpp"
 #include "gateway/OrderGatewayClient.hpp"
 #include "gateway/OrderGatewayServer.hpp"

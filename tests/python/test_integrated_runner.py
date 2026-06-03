@@ -67,7 +67,9 @@ class BuyFirstAskStrategy(Strategy):
         self.callbacks.append("start")
 
     def on_book_snapshot(self, snapshot, ctx):
-        self.callbacks.append(f"snapshot:{snapshot.instrument_id}:{snapshot.timestamp_ns}")
+        self.callbacks.append(
+            f"snapshot:{snapshot.instrument_id}:{snapshot.timestamp_ns}"
+        )
         self.snapshots.append(snapshot)
         if self._sent or snapshot.instrument_id != 10 or not snapshot.asks:
             return
@@ -313,9 +315,12 @@ def test_integrated_immediate_order_fills_against_current_book():
 
     assert result.fills_df.loc[0, "timestamp_ns"] == 100
     assert result.fills_df.loc[0, "fill_price"] == PRICE
-    assert result.trace_df[result.trace_df["stage"] == "order_fill"].iloc[0][
-        "activation_time_ns"
-    ] == 100
+    assert (
+        result.trace_df[result.trace_df["stage"] == "order_fill"].iloc[0][
+            "activation_time_ns"
+        ]
+        == 100
+    )
 
 
 def test_integrated_latency_order_waits_then_fills_on_next_book_state():
@@ -360,9 +365,7 @@ def test_integrated_immediate_and_latency_have_different_fills_and_pnl():
         config={**_integrated_config(), "execution_model": "latency", "latency_ns": 50}
     ).run(BuyFirstAskStrategy(), events=events, mode="integrated")
 
-    assert immediate.fills_df.to_dict("records") != latency.fills_df.to_dict(
-        "records"
-    )
+    assert immediate.fills_df.to_dict("records") != latency.fills_df.to_dict("records")
     assert immediate.pnl_series.to_dict() != latency.pnl_series.to_dict()
     assert immediate.fills_df.loc[0, "fill_price"] == PRICE
     assert latency.fills_df.loc[0, "fill_price"] == 101_000_000_000
@@ -642,9 +645,9 @@ def test_integrated_feather_tiny_fixture_matches_jsonl(tmp_path):
         mode="integrated",
     )
 
-    assert json_result.order_log_df.to_dict("records") == feather_result.order_log_df.to_dict(
+    assert json_result.order_log_df.to_dict(
         "records"
-    )
+    ) == feather_result.order_log_df.to_dict("records")
     assert json_result.fills_df.to_dict("records") == feather_result.fills_df.to_dict(
         "records"
     )
@@ -678,9 +681,9 @@ def test_integrated_jsonl_vs_feather_deterministic_results_match(tmp_path):
     assert _metric(json_result, "integrated_lob_digest") == _metric(
         feather_result, "integrated_lob_digest"
     )
-    assert json_result.order_log_df.to_dict("records") == feather_result.order_log_df.to_dict(
+    assert json_result.order_log_df.to_dict(
         "records"
-    )
+    ) == feather_result.order_log_df.to_dict("records")
     assert json_result.fills_df.to_dict("records") == feather_result.fills_df.to_dict(
         "records"
     )
